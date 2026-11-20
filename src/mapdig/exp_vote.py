@@ -19,6 +19,8 @@ def add_args(p):
     p.add_argument("--symbols", required=True)
     p.add_argument("--demo-report", required=True)
     p.add_argument("--threshold", type=float, default=0.95)
+    p.add_argument("--repeat", type=int, default=0, help="run-level repeat number (cache key only)")
+    p.add_argument("--lazy", action="store_true", help="only the calls single + adaptive need (no vote3/vote5)")
     p.add_argument("--margin", type=int, default=3)
     p.add_argument("--match-px", type=float, default=7)
     p.add_argument("--cache", default="cache/api")
@@ -51,7 +53,7 @@ def run(a):
     r = json.load(open(a.demo_report)); tx, ty = r["tile"]["x"], r["tile"]["y"]
     boxes = {(s["label"], tuple(s["sub"]), s["pass"]): s["box"] for s in r["loop"] if s["action"].startswith("detect")}
     src = rasterio.open(a.map)
-    cache = ApiCache(a.cache, a.api_mode); jev = Jev(cache)
+    cache = ApiCache(a.cache, a.api_mode); jev = Jev(cache, repeat=a.repeat)
     tok_per_call = []
 
     def vote(ans):
@@ -70,7 +72,16 @@ def run(a):
         im = Image.fromarray(np.moveaxis(src.read((1, 2, 3), window=Window(x0, y0, x1 - x0, y1 - y0), boundless=True), 0, -1))
         crop = png(pad(im.resize((im.width * 8, im.height * 8), Image.LANCZOS)))
         ans = []
+        def need(k):   # lazy: call k is needed only if adaptive would ask for it
+            if not a.lazy or k == 0:
+                return True
+            unsure = ans[0]["top"] is None or ans[0]["top"] < a.threshold
+            if k <= 2:
+                return unsure
+            return unsure and vote(ans[:3])[1] < 2
         for k in range(5):
+            if not need(k):
+                break
             e = jev.which_symbol(crop, opts, repeat=k)
             tok_per_call.append(e["usage"]["input_tokens"])
             w = e["response"]["answers"]["which"]; probs = w.get("probabilities") or {}
@@ -87,11 +98,11 @@ def run(a):
             adaptive, n_ad = (c3, 3) if k3 >= 2 else (vote(ans)[0], 5)
         rows.append({**{k: pr[k] for k in ("label", "gt_label", "x", "y", "match")},
                      "answers": [{k: x[k] for k in ("cls", "row", "top")} for x in ans],
-                     "decision": {"single": single, "adaptive": adaptive, "vote3": vote(ans[:3])[0], "vote5": vote(ans)[0]},
-                     "calls": {"single": 1, "adaptive": n_ad, "vote3": 3, "vote5": 5}})
+                     "decision": {"single": single, "adaptive": adaptive, **({} if a.lazy else {"vote3": vote(ans[:3])[0], "vote5": vote(ans)[0]})},
+                     "calls": {"single": 1, "adaptive": n_ad, **({} if a.lazy else {"vote3": 3, "vote5": 5})}})
     truth = r["truth"]; tok = float(np.mean(tok_per_call))
     out = {"threshold": a.threshold, "n": len(rows), "rows": rows, "strategies": {}}
-    for s in ("single", "adaptive", "vote3", "vote5"):
+    for s in (("single", "adaptive") if a.lazy else ("single", "adaptive", "vote3", "vote5")):
         strict = [q for q in rows if q["decision"][s] == q["gt_label"]]
         gentle = [q for q in rows if q["decision"][s] in (q["gt_label"], "none")]
         calls = sum(q["calls"][s] for q in rows)

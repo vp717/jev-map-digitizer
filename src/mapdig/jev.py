@@ -18,7 +18,8 @@ PROMPTS = {   # versioned: changing the wording changes the cache key and must b
 }
 
 class Jev:
-    def __init__(self, cache, model=MODEL, prompt_version="v1"):
+    def __init__(self, cache, model=MODEL, prompt_version="v1", repeat=0):
+        self.repeat = repeat   # run-level repeat number: cache key only, the request sent is unchanged
         from typesafe_sdk import TypeSafeClient
         self.client = TypeSafeClient(model=model, headers=IMAGE_HEADER)
         self.cache, self.model, self.pv = cache, model, prompt_version
@@ -30,6 +31,8 @@ class Jev:
         request = {"model": self.model, "prompt_version": self.pv, "questions": ["present"],
                    "tile_sha256": sha256_bytes(tile_png), "legend_sha256": sha256_bytes(legend_png),
                    "label": label if use_label else None}
+        if self.repeat:
+            request["repeat"] = self.repeat
 
         def call():
             tile, legend = Image(tile_png), Image(legend_png)
@@ -69,7 +72,9 @@ class Jev:
         request = {"model": self.model, "prompt_version": self.pv, "questions": "which_symbol",
                    "crop_sha256": sha256_bytes(crop_png), "options": [[lab, sha256_bytes(b)] for lab, b in options],
                    "none": none_label}
-        if repeat:   # cache-key only: the request sent to Jev is identical for every repeat
+        if self.repeat:   # cache-key only: the request sent to Jev is identical for every repeat
+            request["repeat"] = f"run{self.repeat}-{repeat}"
+        elif repeat:
             request["repeat"] = repeat
 
         def call():
@@ -92,6 +97,8 @@ class Jev:
         request = {"model": self.model, "prompt_version": self.pv, "questions": ["present", "where"],
                    "tile_sha256": sha256_bytes(tile_png), "legend_sha256": sha256_bytes(legend_png),
                    "label": label if use_label else None}
+        if self.repeat:
+            request["repeat"] = self.repeat
 
         def call():
             tile, legend = Image(tile_png), Image(legend_png)

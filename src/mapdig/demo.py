@@ -28,6 +28,7 @@ def add_args(p):
     p.add_argument("--match-px", type=float, default=7)
     p.add_argument("--cache", default="cache/api")
     p.add_argument("--api-mode", default="online", choices=["online", "offline", "refresh"])
+    p.add_argument("--repeat", type=int, default=0, help="run-level repeat number (cache key only): re-ask every call")
     p.add_argument("--mask-palette", default=None,
                    help="palette.json from read-palette: show Jev the image masked to each legend row's colours (change 8)")
     p.add_argument("--mask-mode", choices=["core", "unmix"], default="unmix",
@@ -103,7 +104,7 @@ def run(a):
     images = {"overview": save(ov, "00_overview.png"), "tile": save(Image.fromarray(tile), "01_tile.png")}
 
     cache = ApiCache(a.cache, a.api_mode)
-    jev = Jev(cache)
+    jev = Jev(cache, repeat=a.repeat)
     tokens = {"calls": 0, "input_tokens": 0}
     from mapdig.jev import PROMPTS, _symbol_phrase
     trace = {"screening": {"calls": []}, "loops": {}}

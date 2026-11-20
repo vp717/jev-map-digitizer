@@ -662,25 +662,35 @@ Choice:     unchanged crop (not masked)</pre></div>
   <h2>Result</h2>
   <p>Same tile, same 91 true icons, same Choice check and "ask again when unsure" rule as Change 7.</p>
   <div class="tablewrap"><table><thead><tr><th>Step</th><th>Measure</th><th class="num">no mask (Change 7)</th><th class="num">core mask</th><th class="num">unmix mask</th></tr></thead><tbody id="c8-table"></tbody></table></div>
-  <h3>Classes that changed (found / detections)</h3>
+  <h3>Classes that changed: found / detections</h3>
+  <p class="cap">Search loop only, before the class check. <b>Detections</b>: points the loop placed for that class. <b>Found</b>: those that landed on a real icon of the class (within 7 px). The difference is wrong detections. Statue "1 / 6" means the one real statue was found, plus 5 wrong points.</p>
   <div class="tablewrap"><table><thead><tr><th>Class</th><th class="num">On tile</th><th class="num">no mask</th><th class="num">core mask</th><th class="num">unmix mask</th></tr></thead><tbody id="c8-per"></tbody></table></div>
+</section>
+<section>
+  <h2>Run to run: three runs of each</h2>
+  <p>Jev doesn't give the same answer twice (Change 7), so one run can mislead. Both versions were run three times on this tile, with byte-identical requests; only the cache key carried the run number. Run 1 is the result above. Faded "restricted access" icons are left out (they are on hold): 87 true icons.</p>
+  <div class="tablewrap"><table><thead><tr><th>Run</th><th class="num">no mask: loop F1</th><th class="num">no mask: F1 after class check</th><th class="num">unmix mask: loop F1</th><th class="num">unmix mask: F1 after class check</th></tr></thead><tbody id="c8-noise"></tbody></table></div>
+  <div class="tablewrap"><table><thead><tr><th>Measure</th><th class="num">no mask</th><th class="num">unmix mask</th></tr></thead><tbody id="c8-noise2"></tbody></table></div>
+  <p class="cap">"Box centre spread": for an icon found in two or more runs, the largest distance of a run's detection from their average position.</p>
 </section>
 <section>
   <h2>What this tells us</h2>
   <ul>
     <li><b>Masking fixes screening.</b> Unmasked, screening missed Bust, Shelter and Dance venue on this tile. With the unmix mask it missed only Shelter. Bust and both Dance icons were found without forcing.</li>
     <li><b>Masking removes clutter-driven false claims.</b> Search-loop wrong claims fell from 19 to 14 (Statue 5 → 1, Pharmacy 2 → 0, Fitness 2 → 1), though a new wrong Doctor appeared.</li>
-    <li><b>But the overall score doesn't improve on this tile.</b> Gains are offset by losses in two dense classes: Memorial / Stolperstein (20 → 17) and Traffic signals (11 → 7). After the class decision, F1 is 0.843 against 0.876 unmasked.</li>
+    <li><b>Averaged over three runs, the mask helps the search loop and ties after the class check.</b> The single-run comparison above made the mask look worse, but the first unmasked run was its best of three. The Memorial and Traffic-signal "losses" were mostly that luck: the unmasked search finds Traffic signals in some runs and not others.</li>
+    <li><b>The mask makes the search much more stable.</b> Loop F1 varied by 0.012 across masked runs against 0.052 unmasked. Icons found only sometimes: 6 masked against 10 unmasked, mostly Traffic signals.</li>
+    <li><b>Box placement is not the noisy part.</b> When an icon is found, its centre moves only about half a pixel between runs. The variation comes from the yes/no answers that decide whether the loop keeps going.</li>
     <li><b>Anti-aliasing is essential.</b> The core-colour mask lost every Supermarket and half the Traffic signals. Any mask has to keep blended edge pixels, which will matter even more on scans.</li>
   </ul>
 </section>
 <section>
   <h2>Caveats</h2>
   <ul>
-    <li>One tile; the differences are a few icons per class, close to the noise level measured in Change 7.</li>
+    <li>One tile and three runs each; a handful of icons decide the differences.</li>
     <li>Tolerance (12), blend share (20%) and window (15 px) were set from legend checks and a look at this tile, not tuned on separate tiles.</li>
     <li>The faded "restricted access" rows keep pale colours close to the land colours. Faded Drinking water keeps only about a quarter of each icon. There are no faded icons on this tile, so this run doesn't test them.</li>
-    <li>Why Memorials and Traffic signals got worse hasn't been looked into yet. Both sit on dense backgrounds (Stolpersteine in clusters, signals on grey roads).</li>
+    <li>Traffic signals are the least stable class in both versions. They sit in tight clusters on grey roads.</li>
   </ul>
 </section>
 </div>
@@ -991,9 +1001,19 @@ ${med.map(c => `  ${c.code} = ${c.name}`).join("\n")}  (hidden from Jev)`;
 (() => {
   const C = D.c8, V = C.variants, n = V.none, u = V.unmix, c = V.core;
   $("c8-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", "stages read-palette, demo-tile --mask-palette", `${C.new_calls} new calls`]);
-  $("c8-verdict").textContent = `Masking each search image to the symbol's own colours made screening find classes it always missed (Bust, Dance venue) and cut wrong claims in the search loop from ${n.loop.fp} to ${u.loop.fp}. But it also lost some Memorials and Traffic signals, so overall it ties with no mask in the search loop (F1 ${fmt(n.loop.f1, 3)} vs ${fmt(u.loop.f1, 3)}) and is a little behind after the class decision (${fmt(n.adaptive.strict.f1, 3)} vs ${fmt(u.adaptive.strict.f1, 3)}). The mask only works once blended edge pixels are kept.`;
-  $("c8-stats").innerHTML = stat(`${n.missed.length} → ${u.missed.length}`, "classes screening missed") + stat(`${n.loop.fp} → ${u.loop.fp}`, "search-loop wrong claims") +
-    stat(fmt(n.loop.f1, 3) + " → " + fmt(u.loop.f1, 3), "search-loop F1") + stat(fmt(n.adaptive.strict.f1, 3) + " → " + fmt(u.adaptive.strict.f1, 3), "F1 after class decision") + stat(usd(C.palette_cost), "Opus palette read");
+  const NZ = C.noise.masks;
+  $("c8-verdict").textContent = `Masking each search image to the symbol's own colours made screening find classes it always missed (Bust, Dance venue) and cut wrong claims in the search loop. Averaged over three runs each, the masked search loop scores higher (F1 ${fmt(NZ.unmix.loop_f1.mean, 3)} vs ${fmt(NZ.none.loop_f1.mean, 3)}) and varies far less from run to run; after the class check the two tie (${fmt(NZ.unmix.adaptive_f1.mean, 3)} vs ${fmt(NZ.none.adaptive_f1.mean, 3)}). A single run had made the mask look worse. The mask only works once blended edge pixels are kept.`;
+  $("c8-stats").innerHTML = stat(`${n.missed.length} → ${u.missed.length}`, "classes screening missed") + stat(`${n.loop.fp} → ${u.loop.fp}`, "search-loop wrong claims", "run 1") +
+    stat(fmt(NZ.none.loop_f1.mean, 3) + " → " + fmt(NZ.unmix.loop_f1.mean, 3), "search-loop F1", "mean of 3 runs") + stat(fmt(NZ.none.adaptive_f1.mean, 3) + " → " + fmt(NZ.unmix.adaptive_f1.mean, 3), "F1 after class check", "mean of 3 runs") + stat(usd(C.palette_cost), "Opus palette read");
+  $("c8-noise").innerHTML = [0, 1, 2].map(i => `<tr><td>Run ${i + 1}${i === 0 ? " (above)" : ""}</td><td class="num">${fmt(NZ.none.runs[i].loop.f1, 3)}</td><td class="num">${fmt(NZ.none.runs[i].adaptive.f1, 3)}</td><td class="num">${fmt(NZ.unmix.runs[i].loop.f1, 3)}</td><td class="num">${fmt(NZ.unmix.runs[i].adaptive.f1, 3)}</td></tr>`).join("") +
+    `<tr class="hl"><td>Mean</td><td class="num">${fmt(NZ.none.loop_f1.mean, 3)}</td><td class="num">${fmt(NZ.none.adaptive_f1.mean, 3)}</td><td class="num">${fmt(NZ.unmix.loop_f1.mean, 3)}</td><td class="num">${fmt(NZ.unmix.adaptive_f1.mean, 3)}</td></tr>`;
+  const kk = x => `${x.found_k_of_n["3"]} / ${x.found_k_of_n["2"] + x.found_k_of_n["1"]} / ${x.found_k_of_n["0"]}`;
+  const fl = x => Object.entries(x.flaky_by_class).map(([k, v]) => `${esc(k)} ${v}`).join(", ");
+  $("c8-noise2").innerHTML = [["Loop F1, lowest to highest run", x => `${fmt(x.loop_f1.min, 3)} – ${fmt(x.loop_f1.max, 3)}`],
+    ["Icons found in all 3 / some / no runs", kk], ["Icons found only sometimes, by class", fl],
+    ["Box centre spread, median (90th percentile)", x => `${fmt(x.centre_spread_px.median)} px (${fmt(x.centre_spread_px.p90)} px)`],
+    ["Classes screening missed (every run)", x => x.runs[0].screen_missed.join(", ") || "none"]]
+    .map(([lab, f]) => `<tr><td>${lab}</td><td class="num">${f(NZ.none)}</td><td class="num">${f(NZ.unmix)}</td></tr>`).join("");
   $("c8-tiles").innerHTML = C.tiles.map(t => `<div class="tilecard"><img src="${t.img}" alt="${esc(t.label)}"><b>${esc(t.label)}</b></div>`).join("");
   const multi = C.legend.filter(r => r.colours.length > 1).length;
   $("c8-pal-note").textContent = `Opus returned one colour for ${C.legend.length - multi} symbols and two for ${multi}. Every symbol's true fill colour was in its palette (largest miss: Traffic signals, #666666 against the true #545454, delta E 7.4, within the tolerance). Cost ${usd(C.palette_cost)}.`;

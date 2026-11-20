@@ -18,6 +18,8 @@ DB_STAMP = "out/_shared/db_import.json"
 
 wildcard_constraints:
     mode="core|unmix",
+    mask="none|unmix",
+    rep=r"\d+",
     zoom=r"\d+",
     scale=r"\d+(\.\d+)?",
     area=r"[a-z0-9_]+",
@@ -321,6 +323,43 @@ rule exp_vote_mask:
         "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
 
 
+# Run-to-run noise: repeat the whole search + class decision, byte-identical requests (repeat
+# number in the cache key only). r0 replays the original runs. mask: none | unmix
+rule demo_rep:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        gt=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/gt.gpkg",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        palette=f"{OUT}/palette/palette.json",
+    output: report=f"{OUT}/noise/{{mask}}/r{{rep}}/report.json"
+    params:
+        api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}",
+        mask=lambda w: "" if w.mask == "none" else f"--mask-palette {OUT}/palette/palette.json --mask-mode unmix --mask-tol {PAL_TOL}",
+    log: f"{OUT}/logs/noise_{{mask}}_r{{rep}}.log"
+    shell:
+        "{ML} mapdig demo-tile --map {input.map} --gt {input.gt} --symbols {input.symbols} --tile {DT[tile][0]} {DT[tile][1]} "
+        "{params.mask} --repeat {wildcards.rep} {params.api} --outdir $(dirname {output.report}) > {log} 2>&1"
+
+rule vote_rep:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        report=f"{OUT}/noise/{{mask}}/r{{rep}}/report.json",
+    output: summary=f"{OUT}/noise/{{mask}}/r{{rep}}/vote/summary.json"
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/noise_vote_{{mask}}_r{{rep}}.log"
+    shell:
+        "{ML} mapdig exp-vote --map {input.map} --symbols {input.symbols} --demo-report {input.report} --threshold 0.95 "
+        "--repeat {wildcards.rep} --lazy {params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
+
+
+rule noise_summary:
+    input: expand(f"{OUT}/noise/{{mask}}/r{{rep}}/vote/summary.json", mask=["none", "unmix"], rep=[0, 1, 2])
+    output: f"{OUT}/noise/summary.json"
+    log: f"{OUT}/logs/noise_summary.log"
+    shell: "{ML} mapdig noise-summary --noise-dir $(dirname {output}) --reps 3 --out {output} > {log} 2>&1"
+
+
 # Run-log page (one tab per run / method change); rebuild after any experiment.
 rule runlog:
     input:
@@ -334,6 +373,7 @@ rule runlog:
         "out/osm_phase1_v2/exp_vote_mask_core/summary.json",
         "out/osm_phase1_v2/exp_vote_mask_unmix/summary.json",
         "out/osm_phase1_v2/palette/palette.json",
+        "out/osm_phase1_v2/noise/summary.json",
         "src/mapdig/templates/runlog.html",
     output: "out/runlog/index.html"
     shell: "{ML} mapdig runlog --exp {OUT} --out out/runlog"

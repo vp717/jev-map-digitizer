@@ -23,6 +23,7 @@ STAGES = {
     "exp-vote":      ("mapdig.exp_vote", "add_args", "run", "repeat the Choice when unsure; adaptive vs full votes (change 7)"),
     "read-palette":  ("mapdig.palette", "add_args_read", "run_read", "Opus reads each legend symbol's minimal colour palette"),
     "palette-check": ("mapdig.palette", "add_args_check", "run_check", "how much of each icon / the map survives the colour mask"),
+    "noise-summary": ("mapdig.noise_summary", "add_args", "run", "run-to-run spread of repeated searches (faded excluded)"),
     "runlog":        ("mapdig.runlog", "add_args", "run", "build the run-log page (one tab per run/change)"),
     "pilot-jev":     ("mapdig.pilot", "add_args", "run", "small Jev localisation pilot across magnifications"),
 }

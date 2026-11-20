@@ -4,6 +4,28 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Run-to-run noise of the whole search, with and without the colour mask
+
+**Setup.**
+- New `--repeat R` on `demo-tile` and `exp-vote` puts the run number in every Jev call's cache key; the requests are byte-identical.
+- 3 runs each of the unmasked and unmix-masked search on the demo tile, then the adaptive class decision (`--lazy`: only the calls it needs). r0 replays the original runs.
+- Stage `noise-summary`, output `out/osm_phase1_v2/noise/summary.json`. Faded icons excluded (87 true).
+- 2991 new calls, $0.78.
+
+| | r0 loop / adaptive F1 | r1 | r2 | mean loop F1 | mean adaptive F1 |
+|---|---|---|---|---|---|
+| no mask | 0.816 / 0.870 | 0.764 / 0.792 | 0.772 / 0.805 | 0.784 | 0.822 |
+| unmix mask | 0.817 / 0.835 | 0.805 / 0.810 | 0.810 / 0.815 | **0.811** | 0.82 |
+
+**Findings.**
+- **The original unmasked run (r0) was its best of three.** The single-run Change 8 conclusion, that the mask is slightly worse, was noise. Over three runs **the mask is better in the search loop** (0.811 vs 0.784) and **ties after the class decision** (0.820 vs 0.822).
+- **The mask makes the search far more stable.** Loop F1 range was 0.805–0.817 masked against 0.764–0.816 unmasked. Icons found only sometimes: masked 6 (Traffic signals 3), unmasked 10 (Traffic signals 9).
+- **Box centres are stable:** median 0.53 px and 90th percentile about 1.15 px between runs, in both versions. The noise is in the yes/no answers (screening, loop continue/stop) and in the class decision, not in box placement.
+- **Screening gave the same verdicts in every run.** Unmasked it missed Bust, Dance venue and Shelter; masked only Shelter.
+- **Method note:** single-tile, single-run comparisons can swing loop F1 by about 0.05 and class-decision F1 by about 0.08. Compare means over at least 3 runs (or more tiles) before drawing conclusions.
+
+---
+
 ## 2026-11-20: Faded symbols put on hold; Change 8 rescored without them
 
 The user has put the faded "restricted access" variants on hold. Rescored from the stored results, with no new calls: the 4 faded Parking icons were removed from the tile's truth (87 left), and detections on them or from faded legend rows were ignored.

@@ -331,6 +331,7 @@ def run(a):
             per8.append({"cls": c, "true": a["true"], "none": [a["tp"], a["pred"]], "core": [b.get("tp", 0), b.get("pred", 0)], "unmix": [d.get("tp", 0), d.get("pred", 0)]})
     c8 = {"variants": variants, "per_class": per8, "tiles": masked_tiles, "legend": leg_rows, "palette_cost": PAL["cost_usd"],
           "new_calls": sum(R8[m]["cost"]["api_new_calls"] + V8[m]["api_new_calls"] for m in ("core", "unmix")),
+          "noise": json.load(open(f"{E5}/noise/summary.json")),
           "manifest": manifest(f"{E5}/demo_tile_mask_unmix/manifest.json")}
 
     data = {"tabs": [{"id": "run-1", "title": "Run 1 · baseline", "date": "2026-11-20"},
