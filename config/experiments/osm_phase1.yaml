@@ -21,6 +21,16 @@ render:
   scales: [1]
   legend_columns: 2
 
+pilot_jev:   # not part of `all`; run: uv run snakemake out/osm_phase1/pilot_jev/summary.csv --cores 1
+  area: freiburg_centre
+  zoom: 17
+  scale: 1
+  classes: [Doctor, Parking, Church (Christian)]
+  setups: [640x2, 320x4, 160x8]
+  positives: 10
+  negatives: 5
+  seed: 17
+
 # Not yet used by the workflow (stages still to be built):
 split:   {block_m: 500, fractions: {train: 0.6, val: 0.2, test: 0.2}, seed: 17}
 tiling:  {tile_px: 640, overlap_px: 32, upscale_k: [1, 2, 3, 4], resample: lanczos}

@@ -11,6 +11,7 @@ STAGES = {
     "legend":        ("mapdig.legend", "add_args", "run", "build the legend sheet, true boxes and control crops"),
     "groundtruth":   ("mapdig.groundtruth", "add_args", "run", "base render + render-diff ground truth"),
     "overlay":       ("mapdig.overlay", "add_args", "run", "draw ground truth over a map crop"),
+    "pilot-jev":     ("mapdig.pilot", "add_args", "run", "small Jev localisation pilot across magnifications"),
 }
 
 def main(argv=None):

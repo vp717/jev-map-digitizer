@@ -105,3 +105,27 @@ rule count_classes:
     output: f"{OUT}/class_counts_z{{zoom}}.csv"
     params: areas=lambda w: " ".join(f"--area {n} " + " ".join(map(str, b)) for n, b in config["areas"].items())
     shell: "{RENDER} mapdig count-classes {params.areas} --zoom {wildcards.zoom} --out {output}"
+
+
+# Not part of `all`. Small paid pilot (cached): uv run snakemake out/osm_phase1/pilot_jev/summary.csv --cores 1
+PJ = config["pilot_jev"]
+rule pilot_jev:
+    input:
+        map=f"{OUT}/maps/{PJ['area']}/z{PJ['zoom']}_s{PJ['scale']}/map.tif",
+        gt=f"{OUT}/maps/{PJ['area']}/z{PJ['zoom']}_s{PJ['scale']}/gt.gpkg",
+        sheet=f"{OUT}/legend/z{PJ['zoom']}_s{PJ['scale']}/sheet.png",
+        legend_gt=f"{OUT}/legend/z{PJ['zoom']}_s{PJ['scale']}/sheet_gt.json",
+    output:
+        calls=f"{OUT}/pilot_jev/calls.csv",
+        summary=f"{OUT}/pilot_jev/summary.csv",
+        manifest=f"{OUT}/pilot_jev/manifest.json",
+    params:
+        classes=" ".join(f"'{c}'" for c in PJ["classes"]),
+        setups=" ".join(PJ["setups"]),
+        n=f"--positives {PJ['positives']} --negatives {PJ['negatives']} --seed {PJ['seed']}",
+        api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}",
+    log: f"{OUT}/logs/pilot_jev.log"
+    shell:
+        "{ML} mapdig pilot-jev --map {input.map} --gt {input.gt} --legend-sheet {input.sheet} "
+        "--legend-gt {input.legend_gt} --classes {params.classes} --setups {params.setups} {params.n} "
+        "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
