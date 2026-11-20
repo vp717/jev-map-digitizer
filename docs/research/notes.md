@@ -4,6 +4,25 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Coverage per dollar: exhaustive vs two-stage search
+
+**Method.** Call counts estimated from the ground truth, assuming a perfect detector: presence is always right, the loop finds each icon once, and one final "none left" call. Price per call is $0.000213 (about 5,080 tokens × $0.042 per million). All 25 classes.
+- **Exhaustive:** 160 px tiles, 128 px step, every class in every tile.
+- **Two-stage:** presence check on 640 px tiles (576 px step) for every class, then the Box loop on 160 px sub-tiles (120 px step) only for tile–class pairs that contain the class.
+
+| Area | Icons | Exhaustive | Two-stage | km² per $1 (exh. / two-stage) |
+|---|---|---|---|---|
+| Freiburg centre, 10.3 km² | 1,381 | 27,120 calls, $5.79 ($0.56/km²) | 15,322 calls, $3.27 ($0.32/km²) | 1.8 / **3.2** |
+| Hinterzarten rural, 33.4 km² | 257 | 81,255 calls, $17.34 ($0.52/km²) | 9,111 calls, $1.94 ($0.06/km²) | 1.9 / **17.2** |
+
+**Findings.**
+- Exhaustive cost depends on area: about $0.52–0.56/km² whatever is on the map.
+- Two-stage cost depends on icon density. It saves about 1.8× in the dense city (459 tile–class pairs need the loop) and about 9× in the rural area (178 pairs). In the city the sub-tile loop dominates (25 sub-tiles per positive pair). A middle stage (320 px) might cut it further.
+
+**Caveats.** False positives in the presence check add sub-tile calls, and missed icons lower the cost but also the recall. The real cost is therefore uncertain until the larger pilot.
+
+---
+
 ## 2026-11-20: Jev localisation pilot: how big must an icon be?
 
 **Question.** Can Jev's Box question place a small legend symbol on an OSM render? At what on-screen icon size does it become reliable?
