@@ -77,6 +77,25 @@ def run(a):
                            "after": jpg(open_(f"{D}/{f['after']}"), f"b_frame{n:02d}_b.jpg", 400, 88)})
     base["frames"] = frames
 
+    # why each false positive was scored wrong (same logic for every tab)
+    def fp_reason(pr):
+        if pr["match"] == "TP":
+            return {"kind": "correct", "text": "scored correct: within 7 px of a true icon of this class"}
+        same = sorted(float(np.hypot(pr["x"] - t["x"], pr["y"] - t["y"])) for t in r["truth"] if t["label"] == pr["gt_label"])
+        anyc = sorted((float(np.hypot(pr["x"] - t["x"], pr["y"] - t["y"])), t["label"]) for t in r["truth"])
+        if same and same[0] <= 7:
+            return {"kind": "duplicate", "text": f"duplicate: a {pr['gt_label']} {same[0]:.1f} px away was already matched by another detection"}
+        if anyc and anyc[0][0] <= 7 and anyc[0][1] != pr["gt_label"]:
+            return {"kind": "wrong class", "text": f"wrong class: the icon here is a {anyc[0][1]} ({anyc[0][0]:.1f} px), not a {pr['gt_label']}"}
+        if same and same[0] <= 15:
+            return {"kind": "off-centre", "text": f"off-centre: the nearest {pr['gt_label']} is {same[0]:.1f} px away (limit 7 px)"}
+        return {"kind": "nothing nearby", "text": f"nothing there: no true {pr['gt_label']} within 15 px"}
+    reasons = [fp_reason(pr) for pr in r["predictions"]]
+    base["fp_reasons"] = {}
+    for q in reasons:
+        if q["kind"] != "correct":
+            base["fp_reasons"][q["kind"]] = base["fp_reasons"].get(q["kind"], 0) + 1
+
     # ---------- tabs 2 and 3: from the multi-image experiment ----------
     X = f"{E}/exp_multiimage"; S = json.load(open(f"{X}/summary.json"))
     rows = list(csv.DictReader(open(f"{X}/screening.csv")))
@@ -124,6 +143,7 @@ def run(a):
         row["gentle_keep"] = not (row["choice"] in labels and row["choice"] != row["label"])
         if row["match"] == "FP" or not row["keep"]:
             row["img"] = jpg(crop, f"c2_crop{i:02d}.jpg", 200)
+            row["reason"] = reasons[i]
             cards.append(row)
     n_truth = r["metrics"]["tp"] + r["metrics"]["fn"]
     def prf(rs):
@@ -147,6 +167,7 @@ def run(a):
             cx, cy = int(round(pr["x"])) + 40, int(round(pr["y"])) + 40
             wide = Image.fromarray(big[cy - 20:cy + 20, cx - 20:cx + 20]).resize((320, 320), Image.LANCZOS)
             card = {k: q[k] for k in ("label", "match", "wide_choice", "box_choice", "sq20_choice")}
+            card["reason"] = reasons[i]
             card["img"] = {"wide": jpg(wide, f"c3_{i:02d}_wide.jpg", 150),
                            "box": jpg(open_(f"{Y}/crops/{i:02d}_box.png"), f"c3_{i:02d}_box.jpg", 150),
                            "sq20": jpg(open_(f"{Y}/crops/{i:02d}_sq20.png"), f"c3_{i:02d}_sq20.jpg", 150)}

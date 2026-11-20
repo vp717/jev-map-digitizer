@@ -4,6 +4,27 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Corrected false-positive breakdown (baseline single-tile run)
+
+**Why.** The user noticed run-log cards showing the right icon (Memorial ×3, Doctor ×3 in Jev's answers) marked "false positive". The card layout mixed three different judgements: what the loop claimed, how that claim was scored, and what Jev's Choice said. Checking the cards also showed my earlier categorisation was wrong.
+
+**Rule now used everywhere** (runlog builder `fp_reason`):
+- **duplicate:** a true icon of the same class is within 7 px but already matched by another detection.
+- **wrong class:** the nearest true icon within 7 px is a different class.
+- **off-centre:** the nearest same-class icon is 7–15 px away.
+- **nothing nearby:** none of the above.
+
+**Corrected counts (20 false positives):** 8 wrong class, 5 off-centre, 5 nothing nearby, **2 duplicates** (Memorial, Traffic signals). It was not "10 cross-class".
+
+**New issue: duplicates.**
+- The demo merges same-class points within only 4 px, which is less than an icon's width (about 12–14 px).
+- A first, off-centre box leaves part of the icon un-inpainted, and a later pass finds the remainder about 7 px away.
+- **Fix to try:** merge radius ≈ icon size, or a larger inpaint margin when the box is smaller than the legend icon.
+
+The Change 2 conclusion still holds: the Choice check removed all 8 wrong-class false positives.
+
+---
+
 ## 2026-11-20: Change 3: tighter crops for the Choice check
 
 **Setup.** Stage `exp-crop`, output in `out/osm_phase1/exp_crop/`. 183 new calls, about $0.05. Same 94 demo-tile detections, same Choice question and 26 options as Change 2; only the crop image changes:
@@ -110,7 +131,7 @@ The padding mirrors how the legend options are built, so the icon appears at the
 - Memorial: 20/21 recall, 20/22 precision.
 
 **Error analysis** (20 false positives, 15 misses):
-1. **Cross-class confusion is the largest source: 10 of 20 false positives.** Each class is searched independently, so one icon can be claimed by several look-alike classes:
+1. **Cross-class confusion is the largest source: 10 of 20 false positives.** *(Corrected later the same day: 8 of 20. The Memorial→Memorial and Traffic signals→Traffic signals cases counted here were duplicates, not cross-class. See the entry "Corrected false-positive breakdown".)* Each class is searched independently, so one icon can be claimed by several look-alike classes:
    - **Statue fired on Artwork ×4 and on Bust ×1.** All three are brown, tall and thin. Statue had 6 predictions for 1 true icon.
    - Pharmacy fired on Doctor ×2 (both red crosses).
    - Taxi rank fired on Bus stop.
