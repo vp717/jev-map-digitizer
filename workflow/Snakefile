@@ -39,6 +39,7 @@ def container(service, db=True):
             f"-e MAPDIG_IMAGE={_image_id('map-digitizer-' + service)} {service}")
 
 RENDER, RENDER_NODB = container("render"), container("render", db=False)
+ML = container("ml", db=False)   # GPU; reads API keys from .env
 
 
 rule all:

@@ -13,6 +13,19 @@ mapdig = "mapdig.cli:main"
 [dependency-groups]
 # Runs on the host and drives the containers.
 workflow = ["snakemake==9.27.2"]
+# Installed in the `ml` image (GPU detection, training, hosted-model clients).
+# Raster/vector I/O via rasterio/pyogrio wheels (bundled GDAL), not system GDAL.
+ml = [
+    "torch",
+    "torchvision",
+    "ultralytics",
+    "opencv-python-headless",
+    "rasterio",
+    "pyogrio",
+    "shapely",
+    "anthropic",
+    "typesafe-sdk[pil]",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -23,3 +36,13 @@ packages = ["src/mapdig"]
 
 [tool.uv]
 default-groups = ["workflow"]
+
+# Driver 560.x supports CUDA <= 12.6, so take torch from PyTorch's cu126 index.
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+torchvision = { index = "pytorch-cu126" }

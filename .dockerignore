@@ -1,0 +1,7 @@
+.git
+data
+out
+cache
+.venv
+.snakemake
+**/__pycache__

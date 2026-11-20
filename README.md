@@ -6,11 +6,11 @@ Literature review: [docs/research/](docs/research/).
 
 ## Reproduce
 
-Requirements: Docker (Compose v2), [uv](https://docs.astral.sh/uv/). GPU stages will also need the NVIDIA Container Toolkit.
+Requirements: Docker (Compose v2), [uv](https://docs.astral.sh/uv/), and for GPU stages the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) (an NVIDIA driver supporting CUDA 12.6). API keys go in a git-ignored `.env`: `TYPESAFE_API_KEY=...`, `ANTHROPIC_API_KEY=...`.
 
 ```sh
 uv sync                                   # installs Snakemake (pinned) on the host
-docker compose build render
+docker compose build render ml
 docker compose up -d --wait db
 uv run snakemake -n                       # dry run: what would run and why
 uv run snakemake --cores 2                # run everything that is stale

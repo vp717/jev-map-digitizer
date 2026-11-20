@@ -45,5 +45,23 @@ services:
       db:
         condition: service_healthy
 
+  ml:
+    build:
+      context: .
+      dockerfile: docker/ml/Dockerfile
+    env_file:
+      - path: .env          # TYPESAFE_API_KEY, ANTHROPIC_API_KEY (git-ignored)
+        required: false
+    shm_size: 4g            # PyTorch data loader workers
+    volumes:
+      - .:/work
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
 volumes:
   pgdata:
