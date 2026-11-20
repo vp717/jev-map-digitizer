@@ -4,6 +4,20 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Faded symbols put on hold; Change 8 rescored without them
+
+The user has put the faded "restricted access" variants on hold. Rescored from the stored results, with no new calls: the 4 faded Parking icons were removed from the tile's truth (87 left), and detections on them or from faded legend rows were ignored.
+
+| | Loop F1 | F1 after adaptive Choice |
+|---|---|---|
+| no mask | 0.816 | **0.870** |
+| core mask | 0.805 | 0.808 |
+| unmix mask | 0.817 | 0.835 |
+
+The ranking is unchanged. The faded icons weren't what held the mask back: all 4 were found with no mask and with the unmix mask. The gap comes from Memorial / Stolperstein and Traffic signals.
+
+---
+
 ## 2026-11-20: Change 8: colour-mask the search images to each symbol's palette
 
 **Idea (user).** Opus reads the minimal colour palette of each legend symbol. Before Jev searches for that symbol, every other pixel is whited out.
