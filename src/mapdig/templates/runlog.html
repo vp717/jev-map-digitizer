@@ -317,7 +317,7 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; color: var(--mute
     <li>One tile, 94 detections. The removals are clear-cut cases, but the precision and recall figures come from a small sample.</li>
     <li>The gentle rule was chosen after looking at these same answers, so its numbers are optimistic until tested on new tiles.</li>
     <li>The 40 px crop is wide enough to include neighbours; <a href="#change-3">Change 3</a> tests tighter crops.</li>
-    <li>Jev confirmed the two Fitness station "hallucinations" at 0.93–0.95. Either a similar icon exists that the ground truth doesn't count, or Jev is consistently wrong there. This still needs checking by eye.</li>
+    <li>Jev confirmed the two Fitness station "hallucinations" at 0.93–0.95. They were Dance icons, a class missing from our legend: see <a href="#change-4">Change 4</a>.</li>
   </ul>
 </section>
 </div>
@@ -376,6 +376,71 @@ same scale in the crop and the options.</pre></div>
     <li>94 detections on one tile. The best F1 gain (+0.017) is about two detections, so it is within noise.</li>
     <li>The margin (3 px) and square size (20 px) were picked once and not tuned.</li>
     <li>Choice answers changed between crops for many correct detections, so a single Choice call is a noisy filter. A vote across crops is a possible follow-up.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 4 ======================= -->
+<div class="panel" id="panel-change-4" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c4-meta"></div>
+  <p class="verdict">The two Fitness "hallucinations" were Dance icons: a different figure in the same green, which wasn't in our legend. With Dance added, each single-symbol search loop still fires on both figures. Asked to choose between the two legend symbols, Jev separated them perfectly: 0 confusions across all 26 Fitness and Dance icons in Freiburg centre.</p>
+  <div class="stats" id="c4-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>On the baseline tile, two Fitness station detections had no Fitness icon nearby, yet Jev confirmed them as Fitness in every crop (<a href="#change-3">Change 3</a>). Looking at them shows a different figure: openstreetmap-carto's <b>Dance</b> icon (<code>leisure=dance</code>), drawn in exactly the same green (<code>#0c8416</code>) at the same size. Dance wasn't one of our 25 classes, so the ground truth didn't record it, and the Choice check had no Dance option to pick.</p>
+  <div class="tiles" id="c4-why"></div>
+</section>
+<section>
+  <h2>What changed</h2>
+  <div class="ba">
+    <div><h3>Before<span class="tag">25 classes</span></h3><pre>classes:   25 (no Dance)
+legend:    25 entries
+truth:     89 icons on the tile
+Dance icons: invisible to scoring,
+           so a Fitness detection on
+           one is "nothing there"
+Choice:    25 options + none</pre></div>
+    <div class="after"><h3>After<span class="tag">26 classes · config osm_phase1_dance</span></h3><pre>classes:   26 (+ Dance, leisure/dance.svg)
+legend:    26 entries, re-read by Opus
+truth:     91 icons on the tile (+2 Dance)
+Dance loop: forced on (screening said 0.42,
+           below the 0.5 threshold)
+Choice:    26 options + none, tight crop
+           (Jev's box + 3 px, ×8, padded)</pre></div>
+  </div>
+  <p id="c4-same"></p>
+</section>
+<section>
+  <h2>On the tile: who claimed what</h2>
+  <p>Every Fitness and Dance detection on the tile. The search loop only ever sees one legend symbol and asks "is there one like this?", so each loop fired on <em>both</em> figures. The Choice check sees both symbols side by side and puts each detection in the right class.</p>
+  <div class="cards" id="c4-dets" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr))"></div>
+  <div class="tablewrap"><table><thead><tr><th>Whole tile, 26 classes</th><th class="num">Detections</th><th class="num">Correct</th><th class="num">False pos.</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody id="c4-table"></tbody></table></div>
+  <p class="cap">The ground truth now has 91 icons on the tile instead of 89, so these figures aren't directly comparable with Changes 2–3. The Change 3 best (25 classes, box crop, strict) was precision 0.908, recall 0.775, F1 0.836.</p>
+</section>
+<section>
+  <h2>Across Freiburg centre: every Fitness and Dance icon</h2>
+  <p>Each of the 19 Fitness and 7 Dance icons in the area's ground truth was cropped from its true box (+3&nbsp;px, ×8, padded) and asked twice: once against all 26 legend options plus "none", and once as a direct two-way choice between Fitness and Dance (plus "none").</p>
+  <div class="tablewrap"><table><thead><tr><th>Question</th><th>True class</th><th class="num">Icons</th><th class="num">Correct</th><th class="num">Called the other one</th><th class="num">"None of these"</th><th class="num">Another class</th></tr></thead><tbody id="c4-conf"></tbody></table></div>
+  <div class="cards" id="c4-icons" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,130px),1fr))"></div>
+</section>
+<section>
+  <h2>What this tells us</h2>
+  <ul>
+    <li><b>A single-symbol "is there one like this?" question is permissive.</b> Two different figures in the same colour both pass, even though the prompt says "same shape and colour". The loop is a good candidate finder, but it doesn't settle the class.</li>
+    <li><b>A comparison between legend symbols settles it.</b> With both symbols available as options, Jev never confused them: 0 of 26 icons swapped, with probabilities of 0.97–0.99 on the tile's detections. So the pipeline should look for candidates per class, then let a Choice among <em>all</em> legend symbols decide the class.</li>
+    <li><b>Screening missed Dance</b> (P = 0.42 with 2 Dance icons on the tile), the third present class screened out on this tile after Bust and Shelter. The screening threshold or prompt needs work.</li>
+    <li><b>A missing legend class looks like a hallucination.</b> When the legend handed to the method is incomplete, its errors land on the nearest look-alike. On real maps with incomplete legends this will matter.</li>
+  </ul>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>26 icons area-wide and 8 detections on the tile: a clear result, but a small sample of one look-alike pair.</li>
+    <li>The Dance loop was forced on, past the screening result, so this tile's recall assumes screening worked.</li>
+    <li>The label "Fitness station" is too narrow: the same icon also marks gyms (<code>fitness_centre</code>). It was kept unchanged so that only one thing changed here.</li>
+    <li>One Dance icon was called "Charging station" in the 26-way question (but Dance in the two-way one), and one Fitness icon "none of these" in both.</li>
   </ul>
 </section>
 </div>
@@ -550,7 +615,7 @@ document.addEventListener("click", e => { const a = e.target.closest('a[href^="#
     `"None of these" answers went up with tighter crops (${S.wide.choice_none} → ${S.box.choice_none} → ${S.sq20.choice_none}). Some were right (off-centre false positives with only part of an icon in view); some cost correct detections.`,
     `Many correct detections flip between crops, e.g. a Doctor called "Pharmacy" or "Museum" only in the 20 px square, and a Memorial called "Bicycle rental" only in the wide crop. One Choice call is a noisy filter.`,
     `The false positives that survive every crop are the right class in the wrong place: off-centre by 8–15 px (Hotel, Charging station, Traffic signals) or a second detection of an already-matched icon (Memorial). The Choice check can't remove these, because the icon really is that class. They need the detection re-centred, and duplicates merged over a radius at least an icon wide.`,
-    `Both Fitness station "hallucinations" are confirmed by all three crops. That points to a real fitness-like icon the ground truth doesn't count, which still needs checking by eye.`
+    `Both Fitness station "hallucinations" are confirmed by all three crops. They turned out to be Dance icons, a class missing from the legend (see Change 4).`
   ].map(t => `<li>${esc(t)}</li>`).join("");
   $("c3-cards").innerHTML = C.cards.map(c => { const fp = c.match === "FP";
     const cell = (v, name) => { const ch = c[v + "_choice"], keep = ch === c.label, ok = fp ? !keep : keep;
@@ -559,6 +624,32 @@ document.addEventListener("click", e => { const a = e.target.closest('a[href^="#
     return `<div class="card"><div class="why">Loop claimed</div><div class="claim">${esc(c.label)}</div>
       <div class="why"><b>${fp ? "Scored wrong" : "Scored correct"}</b>: ${esc(c.reason.text.replace(/^[^:]*: /, ""))}</div>
       <div class="trio">${cell("wide", "wide")}${cell("box", "box")}${cell("sq20", "sq20")}</div></div>`; }).join("");
+})();
+
+// ---------- change 4 ----------
+(() => {
+  const C = D.c4, A = C.A;
+  $("c4-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_dance", "stage exp-dance", `${C.summary.api_new_calls} new calls`]);
+  const B2 = C.B2, B26 = C.B26, n = B2["Fitness station"].n + B2.Dance.n;
+  const swaps = B2["Fitness station"].as_other + B2.Dance.as_other + B26["Fitness station"].as_other + B26.Dance.as_other;
+  $("c4-stats").innerHTML = stat(swaps, "Fitness↔Dance swaps", `${n} icons, two questions each`) +
+    stat(`${B2["Fitness station"].correct + B2.Dance.correct}/${n}`, "correct, two-way question") + stat(`${B26["Fitness station"].correct + B26.Dance.correct}/${n}`, "correct, 26-way question") +
+    stat(fmt(A.loop.precision) + " → " + fmt(A.strict.precision), "tile precision, loop → strict") + stat(usd(C.summary.cost.usd), "added cost", `${C.summary.cost.calls} Choice calls + ${C.summary.dance_screening.stage2_calls} Dance loop calls`);
+  $("c4-why").innerHTML = [["Fitness legend", C.legend_fitness, "pix"], ["Dance legend", C.legend_dance, "pix"], ...C.baseline_fps.map((src, i) => [`baseline "Fitness" FP ${i + 1}`, src, ""])]
+    .map(([n2, src, cls]) => `<div class="tilecard"><img class="${cls}" src="${src}" alt="${n2}"><b>${n2}</b></div>`).join("");
+  $("c4-same").textContent = `Everything else is unchanged: the same tile (pinned), model, prompt, crops and code. Of the baseline's calls, ${C.demo_cost.api_cache_hits} replayed byte-identical from the cache, and the new ones are all Dance-related. Opus read all ${C.opus.entries_read} entries with exact labels (${usd(C.opus.cost_usd)}).`;
+  $("c4-dets").innerHTML = C.dets.map(d => { const right = d.choice === d.truth;
+    return `<div class="card ${right ? "good" : "bad"}"><div class="why">Loop claimed</div><div class="claim">${esc(d.label)}</div>
+      <div class="why"><b>Actually</b>: ${d.truth === "nothing" ? "no icon" : esc(d.truth)} icon</div><img src="${d.img}" alt="crop">
+      <div class="row"><span>Jev chose</span><b>${esc(d.choice)}</b></div><div class="row"><span>P(Fitness) · P(Dance)</span><b class="mono">${fmt(d.p_fitness)} · ${fmt(d.p_dance)}</b></div>
+      <div class="verdictline">${d.match === "TP" ? (d.choice === d.label ? "✓ correct, kept" : "✗ correct, lost") : (d.choice === d.label ? "✗ wrong claim kept" : "✓ wrong claim removed")}</div></div>`; }).join("");
+  $("c4-table").innerHTML = [["loop output", A.loop], ["after Choice, strict", A.strict], ["after Choice, gentle", A.gentle]].map(([nm, v], i) =>
+    `<tr${i === 1 ? ' class="hl"' : ""}><td>${nm}</td><td class="num">${v.pred}</td><td class="num">${v.tp}</td><td class="num">${v.fp}</td><td class="num">${fmt(v.precision, 3)}</td><td class="num">${fmt(v.recall, 3)}</td><td class="num">${fmt(v.f1, 3)}</td></tr>`).join("");
+  $("c4-conf").innerHTML = [["26-way (all legend symbols)", B26], ["two-way (Fitness or Dance)", B2]].flatMap(([q, B]) => ["Fitness station", "Dance"].map(t =>
+    `<tr><td>${q}</td><td>${t}</td><td class="num">${B[t].n}</td><td class="num">${B[t].correct}</td><td class="num">${B[t].as_other}</td><td class="num">${B[t].as_none}</td><td class="num">${B[t].as_else}</td></tr>`)).join("");
+  $("c4-icons").innerHTML = C.icons.map(q => { const ok = q.choice26 === q.truth && q.choice2 === q.truth;
+    return `<div class="card ${ok ? "good" : "warn"}"><img src="${q.img}" alt="${esc(q.truth)} icon"><div class="row"><span>truth</span><b>${q.truth === "Fitness station" ? "Fitness" : "Dance"}</b></div>
+      <div class="row"><span>26-way</span><b>${esc(q.choice26 === "Fitness station" ? "Fitness" : q.choice26)}</b></div><div class="row"><span>2-way</span><b>${esc(q.choice2 === "Fitness station" ? "Fitness" : q.choice2)}</b></div></div>`; }).join("");
 })();
 
 show(location.hash.slice(1));

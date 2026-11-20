@@ -4,6 +4,31 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Change 4: the Fitness "hallucinations" were Dance icons
+
+**Trigger.** The user suspected a dance-studio icon. Looking at the two baseline Fitness false positives confirmed it: they are openstreetmap-carto's **Dance** icon (`leisure/dance.svg`), drawn in the same green `#0c8416` at the same size as Fitness (`leisure/fitness.svg`). Dance wasn't one of our 25 classes, so it was missing from the ground truth and from the Choice options.
+
+**Setup.**
+- New config `config/experiments/osm_phase1_dance.yaml`: 26 classes (+ Dance), Freiburg centre only, demo tile pinned to the baseline tile.
+- Opus re-read the 26-entry legend (26/26 exact, $0.023).
+- Ground truth: 7 Dance and 19 Fitness icons in Freiburg centre; 2 of each on the tile.
+- Dance screened at **P = 0.42** (missed), so the Dance loop was forced with `--force-classes Dance`.
+- Stage `exp-dance`: the Choice check with 26 options (tight box crop) on the tile's detections, plus every Fitness and Dance icon in the area asked as a 26-way and as a 2-way Choice.
+- Controlled change: 569 of 570 baseline calls replayed byte-identical from the cache. New calls: 29 for the Dance loop, 146 Choice calls, $0.044 in total.
+
+**Results.**
+- **The single-symbol loops conflate the two figures.** The Fitness loop claimed 2 Fitness + 2 Dance; the Dance loop claimed 2 Dance + 2 Fitness. The yes/no "one like this?" passes a same-colour look-alike despite the prompt's "same shape and colour".
+- **A Choice between legend symbols separates them perfectly.** All 4 wrong claims were rejected and all 4 right ones kept, with P 0.97–0.99. Area-wide: **0 Fitness↔Dance swaps** in 52 questions (26 icons × 2). Two-way: 25/26 correct (1 Fitness → "none"). 26-way: 24/26 (1 Fitness → none, 1 Dance → Charging station).
+- **Tile, 26 classes** (91 true icons): loop P 0.776 / R 0.835 / F1 0.804. After Choice, strict: **P 0.944** / R 0.736 / F1 0.827. Gentle: P 0.867 / R 0.791 / F1 0.828.
+
+**Implications.**
+1. Architecture: per-class loops as **candidate finders**, then a Choice among **all** legend symbols to **assign the class**.
+2. **An incomplete legend produces apparent hallucinations on look-alikes.** This matters for real maps.
+3. Screening has now missed 3 present classes on this tile (Bust 0.44, Shelter 0.16, Dance 0.42). Its threshold and prompt need tuning.
+4. Label issue: "Fitness station" should read "Fitness (gym or station)", because fitness.svg also marks `fitness_centre`. Left unchanged here.
+
+---
+
 ## 2026-11-20: Corrected false-positive breakdown (baseline single-tile run)
 
 **Why.** The user noticed run-log cards showing the right icon (Memorial ×3, Doctor ×3 in Jev's answers) marked "false positive". The card layout mixed three different judgements: what the loop claimed, how that claim was scored, and what Jev's Choice said. Checking the cards also showed my earlier categorisation was wrong.

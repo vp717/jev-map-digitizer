@@ -178,11 +178,38 @@ def run(a):
                       "sq20": f"img/c3_{ex_i:02d}_sq20.jpg",
                       "option": pngf(legend(next(e for e in entries if e["label"] == "Artwork"), 8).resize((150, 150), Image.LANCZOS), "c3_opt_artwork.png")}}
 
+    # ---------- tab 5: change 4, Dance class added (fair shot for Fitness vs Dance) ----------
+    E4 = E + "_dance"
+    S4 = json.load(open(f"{E4}/exp_dance/summary.json"))
+    r4 = json.load(open(f"{E4}/demo_tile/report.json"))
+    sym4 = json.load(open(f"{E4}/legend_read/z17_s1/symbols.json")); sdir4 = f"{E4}/legend_read/z17_s1"
+    def icon4(label, name):
+        e = next(e for e in sym4["entries"] if e["label"] == label)
+        return pngf(open_(os.path.join(sdir4, e["crop"])), name, 8)
+    R3c = {int(q["i"]): q for q in R3}
+    base_fit = [i for i, pr in enumerate(r["predictions"]) if pr["label"] == "Fitness station" and pr["match"] == "FP"]
+    dets = []
+    for q in S4["A"]["fd_detections"]:
+        i = q["i"]; pr = r4["predictions"][i]
+        truth = next((t["label"] for t in r4["truth"] if np.hypot(t["x"] - pr["x"], t["y"] - pr["y"]) <= 7), "nothing")
+        dets.append({**{k: q[k] for k in ("label", "match", "choice", "p_fitness", "p_dance")}, "truth": truth,
+                     "img": jpg(open_(f"{E4}/exp_dance/crops/det_{i:02d}.png"), f"c4_det{i:02d}.jpg", 160)})
+    icons = [{k: q[k] for k in ("truth", "choice26", "choice2", "p26_fitness", "p26_dance", "p2_fitness", "p2_dance")}
+             | {"img": jpg(open_(f"{E4}/exp_dance/{q['crop']}"), f"c4_gt{q['k']:04d}.jpg", 120)} for q in S4["B"]["icons"]]
+    c4 = {"summary": {k: S4[k] for k in ("cost", "api_new_calls", "api_cache_hits", "dance_screening")},
+          "A": {k: S4["A"][k] for k in ("loop", "strict", "gentle")}, "c3_box": S3["box"], "dets": dets, "icons": icons,
+          "B26": S4["B"]["choice26"], "B2": S4["B"]["choice2"],
+          "opus": sym4["summary"], "truth_icons": r4["tile"]["icons_present"], "base_truth_icons": r["tile"]["icons_present"],
+          "demo_cost": r4["cost"], "manifest": manifest(f"{E4}/exp_dance/manifest.json"),
+          "legend_fitness": icon4("Fitness station", "c4_leg_fitness.png"), "legend_dance": icon4("Dance", "c4_leg_dance.png"),
+          "baseline_fps": [jpg(open_(f"{Y}/crops/{i:02d}_box.png"), f"c4_basefp{i:02d}.jpg", 160) for i in base_fit]}
+
     data = {"tabs": [{"id": "run-1", "title": "Run 1 · baseline", "date": "2026-11-20"},
                      {"id": "change-1", "title": "Change 1 · batched screening", "date": "2026-11-20"},
                      {"id": "change-2", "title": "Change 2 · Choice check", "date": "2026-11-20"},
-                     {"id": "change-3", "title": "Change 3 · tighter crops", "date": "2026-11-20"}],
-            "base": base, "c1": c1, "c2": c2, "c3": c3}
+                     {"id": "change-3", "title": "Change 3 · tighter crops", "date": "2026-11-20"},
+                     {"id": "change-4", "title": "Change 4 · Fitness vs Dance", "date": "2026-11-20"}],
+            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4}
     tpl = open(os.path.join(os.path.dirname(__file__), "templates", "runlog.html")).read()
     open(os.path.join(O, "index.html"), "w").write(tpl.replace("/*DATA*/null", json.dumps(data, separators=(",", ":"))))
     files = sorted("img/" + f for f in os.listdir(I))

@@ -28,6 +28,8 @@ def add_args(p):
     p.add_argument("--match-px", type=float, default=7)
     p.add_argument("--cache", default="cache/api")
     p.add_argument("--api-mode", default="online", choices=["online", "offline", "refresh"])
+    p.add_argument("--force-classes", nargs="*", default=[],
+                   help="legend labels searched by the loop even if screening says no (ablation)")
     p.add_argument("--trace-classes", nargs="*", default=[],
                    help="legend labels whose every Jev call is saved: exact PNG bytes sent, prompt, response")
     p.add_argument("--outdir", required=True)
@@ -123,7 +125,8 @@ def run(a):
                 "response": r["response"]["answers"], "usage": r["usage"], "cache_key": r["key"]})
         n_true = sum(t["label"] == e["gt_label"] for t in truth)
         screening.append({"label": e["label"], "gt_label": e["gt_label"], "p_present": p, "n_true": n_true,
-                          "screened_in": p >= a.screen_threshold})
+                          "screened_in": p >= a.screen_threshold or e["label"] in a.force_classes,
+                          "forced": e["label"] in a.force_classes and p < a.screen_threshold})
     images["legend_x2_example"] = save(legend_png(entries[11], k1), "03_legend_input_doctor_x2.png")
     t_screen = time.time() - t0
 
