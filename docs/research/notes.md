@@ -4,6 +4,31 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Change 3: tighter crops for the Choice check
+
+**Setup.** Stage `exp-crop`, output in `out/osm_phase1/exp_crop/`. 183 new calls, about $0.05. Same 94 demo-tile detections, same Choice question and 26 options as Change 2; only the crop image changes:
+- **wide:** 40 px ×8 (the Change 2 crop).
+- **box:** Jev's loop box + 3 px (median 18.5 × 20 px), ×8, padded to 280 px with the land colour.
+- **sq20:** 20 px square, ×8, padded to 280 px.
+
+The padding mirrors how the legend options are built, so the icon appears at the same scale in crop and options.
+
+| Crop | Rule | Precision | Recall | F1 | FP removed / 20 | Correct lost |
+|---|---|---|---|---|---|---|
+| none | – | 0.787 | 0.831 | 0.809 | – | – |
+| wide | strict | 0.883 | 0.764 | 0.819 | 11 | 6 |
+| **box** | **strict** | **0.908** | **0.775** | **0.836** | 13 | 5 |
+| sq20 | strict | 0.918 | 0.753 | 0.827 | 14 | 7 |
+| box | gentle | 0.839 | 0.820 | 0.830 | 6 | **1** |
+
+**Findings.**
+- Cropping to Jev's own box is best, but the gain is small: +0.017 F1, about two detections, so it is within noise on 94 detections. The cost is the same (about 6,750 tokens per call, dominated by the 25 option images).
+- **The Choice answers are noisy.** 17 correct detections were rejected by at least one crop, but rarely by all three. "None of these" answers rise as crops get tighter (7 → 11 → 11). Next idea: a majority vote across crops, or two calls.
+- **The surviving false positives are mostly the right class, just off-centre** (8–12 px): Hotel, Charging station, Traffic signals, Memorial. Choice can't fix these. They need re-centring, e.g. template-snapping the point inside Jev's box.
+- Both Fitness station "hallucinations" were confirmed by all three crops (wide, box, sq20). That strengthens the case for a real fitness-like icon the ground truth doesn't count. Check by eye.
+
+---
+
 ## 2026-11-20: Multi-image calls: batched screening and a Choice check on detections
 
 **Setup.** Stage `exp-multiimage`. Outputs: `out/osm_phase1/exp_multiimage/{summary.json,screening.csv,choice.csv}`. This run made 275 new calls (about $0.07).

@@ -306,7 +306,66 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; color: var(--mute
   <ul>
     <li>One tile, 94 detections. The removals are clear-cut cases, but the precision and recall figures come from a small sample.</li>
     <li>The gentle rule was chosen after looking at these same answers, so its numbers are optimistic until tested on new tiles.</li>
+    <li>The 40 px crop is wide enough to include neighbours; <a href="#change-3">Change 3</a> tests tighter crops.</li>
     <li>Jev confirmed the two Fitness station "hallucinations" at 0.93–0.95. Either a similar icon exists that the ground truth doesn't count, or Jev is consistently wrong there. This still needs checking by eye.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 3 ======================= -->
+<div class="panel" id="panel-change-3" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c3-meta"></div>
+  <p class="verdict" id="c3-verdict"></p>
+  <div class="stats" id="c3-stats"></div>
+</div>
+<section>
+  <h2>What changed</h2>
+  <p>Only the crop image in the Choice check from <a href="#change-2">Change 2</a>. The detections (the same 94 from the baseline), the question, the 26 options and both keep rules are unchanged.</p>
+  <div class="ba">
+    <div><h3>Before<span class="tag">wide · Change 2</span></h3>
+      <pre>40 × 40 px of the original tile,
+centred on the detection point,
+enlarged ×8 → 320 × 320 px.
+
+The icon is 6–14 px, so most of the
+crop is surroundings, often including
+neighbouring icons and labels.</pre></div>
+    <div class="after"><h3>After<span class="tag">two tighter variants</span></h3>
+      <pre>box:  Jev's own loop box + 3 px margin
+      (median 18.5 × 20 px), ×8,
+      padded to ≥ 280 px with land colour
+sq20: 20 × 20 px around the point, ×8
+      (160 px), padded to 280 px
+
+Padding mirrors how the legend options
+are made, so the icon appears at the
+same scale in the crop and the options.</pre></div>
+  </div>
+  <h3>One detection, three crops</h3>
+  <p id="c3-ex-text"></p>
+  <div class="tiles" id="c3-example"></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Same 89 true icons, same matching rule (one-to-one, same class, ≤ 7 px).</p>
+  <div class="tablewrap"><table><thead><tr><th>Crop</th><th>Rule</th><th class="num">Detections</th><th class="num">FP removed</th><th class="num">Correct lost</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody id="c3-table"></tbody></table></div>
+  <p id="c3-cost"></p>
+  <h3>What the per-detection answers show</h3>
+  <ul id="c3-findings"></ul>
+</section>
+<section>
+  <h2>Every detection where any crop disagreed</h2>
+  <p>All 20 baseline false positives, plus every correct detection that at least one crop rejected. Each card shows the three crops Jev saw, left to right: wide, box, sq20. Below each is what Jev chose.</p>
+  <div class="key"><span><i style="background:var(--tp)"></i>right outcome (FP rejected / correct kept)</span><span><i style="background:var(--fp)"></i>wrong outcome (strict rule)</span></div>
+  <div class="cards" id="c3-cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))"></div>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>94 detections on one tile. The best F1 gain (+0.017) is about two detections, so it is within noise.</li>
+    <li>The margin (3 px) and square size (20 px) were picked once and not tuned.</li>
+    <li>Choice answers changed between crops for many correct detections, so a single Choice call is a noisy filter. A vote across crops is a possible follow-up.</li>
   </ul>
 </section>
 </div>
@@ -455,6 +514,37 @@ document.addEventListener("click", e => { const a = e.target.closest('a[href^="#
       <div class="row"><span>loop said</span><b>${esc(c.label)}</b></div><div class="row"><span>Jev chose</span><b>${esc(c.choice)}</b></div>
       <div class="row"><span>P(own class)</span><b class="mono">${fmt(c.p_own)}</b></div><div class="row"><span>P(none)</span><b class="mono">${fmt(c.p_none)}</b></div>
       <div class="row"><span>gentle rule</span><b>${gentle}</b></div></div>`; }).join("");
+})();
+
+// ---------- change 3 ----------
+(() => {
+  const C = D.c3, S = C.summary, V = [["wide", "40 px (Change 2)"], ["box", "Jev's box + 3 px"], ["sq20", "20 px square"]];
+  const best = S.box.strict;
+  $("c3-meta").innerHTML = metaLine(C.manifest, ["stage exp-crop", `${S.before.pred} detections · ${S.api_new_calls} new calls`]);
+  $("c3-verdict").textContent = `Cropping to Jev's own box (plus 3 px) gave the best result: precision ${fmt(S.wide.strict.precision)} → ${fmt(best.precision)}, recall ${fmt(S.wide.strict.recall)} → ${fmt(best.recall)}, F1 ${fmt(S.wide.strict.f1, 3)} → ${fmt(best.f1, 3)}. A small gain, about two detections. With the gentle rule it loses only ${S.box.tp_lost_gentle} correct detection.`;
+  $("c3-stats").innerHTML = stat(fmt(S.wide.strict.f1, 3) + " → " + fmt(best.f1, 3), "F1, strict rule", "wide → box") +
+    stat(fmt(S.wide.strict.precision) + " → " + fmt(best.precision), "precision") + stat(S.wide.fp_removed_strict + " → " + S.box.fp_removed_strict, "false positives removed", "of 20") +
+    stat(S.wide.tp_lost_strict + " → " + S.box.tp_lost_strict, "correct detections lost") + stat(usd(S.cost.box.usd), "cost per variant", `${S.cost.box.calls} calls`);
+  $("c3-ex-text").textContent = `A Statue false positive on an Artwork icon, as each crop showed it, next to the Artwork legend option. In the wide crop the icon is small and surrounded by context. In the tighter crops it fills the frame at the same scale as the option.`;
+  $("c3-example").innerHTML = [["wide", C.example.wide], ["box", C.example.box], ["sq20", C.example.sq20], ["Artwork option", C.example.option]]
+    .map(([n, src]) => `<div class="tilecard"><img src="${src}" alt="${n}"><b>${n}</b></div>`).join("");
+  let rows = `<tr><td>none</td><td>loop output</td><td class="num">${S.before.pred}</td><td class="num">–</td><td class="num">–</td><td class="num">${fmt(S.before.precision, 3)}</td><td class="num">${fmt(S.before.recall, 3)}</td><td class="num">${fmt(S.before.f1, 3)}</td></tr>`;
+  V.forEach(([v, name]) => ["strict", "gentle"].forEach(rule => { const m = S[v][rule];
+    rows += `<tr${v === "box" && rule === "strict" ? ' class="hl"' : ""}><td>${name}</td><td>${rule}</td><td class="num">${m.pred}</td><td class="num">${S[v]["fp_removed_" + rule]}</td><td class="num">${S[v]["tp_lost_" + rule]}</td><td class="num">${fmt(m.precision, 3)}</td><td class="num">${fmt(m.recall, 3)}</td><td class="num">${fmt(m.f1, 3)}</td></tr>`; }));
+  $("c3-table").innerHTML = rows;
+  $("c3-cost").textContent = `Each variant is ${S.cost.box.calls} calls (about ${Math.round(S.cost.box.tokens / S.cost.box.calls).toLocaleString()} tokens each, nearly all from the 25 option images), ${usd(S.cost.box.usd)} and about ${fmt(S.cost.box.latency_s, 0)} s sequential. A tighter crop doesn't change the cost.`;
+  $("c3-findings").innerHTML = [
+    `"None of these" answers went up with tighter crops (${S.wide.choice_none} → ${S.box.choice_none} → ${S.sq20.choice_none}). Some were right (off-centre false positives with only part of an icon in view); some cost correct detections.`,
+    `Many correct detections flip between crops, e.g. a Doctor called "Pharmacy" or "Museum" only in the 20 px square, and a Memorial called "Bicycle rental" only in the wide crop. One Choice call is a noisy filter.`,
+    `The false positives that survive every crop are mostly the right class drawn 8–12 px from the true icon (Hotel, Charging station, Traffic signals, Memorial). The Choice check can't remove these, because the icon really is that class; they need the detection re-centred.`,
+    `Both Fitness station "hallucinations" are confirmed by all three crops. That points to a real fitness-like icon the ground truth doesn't count, which still needs checking by eye.`
+  ].map(t => `<li>${esc(t)}</li>`).join("");
+  $("c3-cards").innerHTML = C.cards.map(c => { const fp = c.match === "FP";
+    const cell = v => { const ch = c[v + "_choice"], keep = ch === c.label, ok = fp ? !keep : keep;
+      return `<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><img src="${c.img[v]}" alt="${v} crop"><span class="pill ${ok ? "good" : "bad"}" style="white-space:normal;text-align:center">${esc(ch)}</span></div>`; };
+    return `<div class="card ${fp ? "bad" : "good"}"><div class="row"><span>${fp ? "false positive" : "correct detection"}</span><b>${esc(c.label)}</b></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${cell("wide")}${cell("box")}${cell("sq20")}</div>
+      <div class="row cap"><span>wide</span><span>box</span><span>sq20</span></div></div>`; }).join("");
 })();
 
 show(location.hash.slice(1));

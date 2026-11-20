@@ -136,10 +136,32 @@ def run(a):
           "loop_calls": r["cost"]["jev_calls"] - len(r["screening"]), "loop_usd": r["cost"]["jev_usd"],
           "manifest": manifest(f"{X}/manifest.json")}
 
+    # ---------- tab 4: change 3, tighter crops ----------
+    Y = f"{E}/exp_crop"; S3 = json.load(open(f"{Y}/summary.json"))
+    R3 = list(csv.DictReader(open(f"{Y}/choices.csv")))
+    cards3 = []
+    for q in R3:
+        i = int(q["i"])
+        if q["match"] == "FP" or any(q[f"{v}_choice"] != q["label"] for v in ("wide", "box", "sq20")):
+            pr = r["predictions"][i]
+            cx, cy = int(round(pr["x"])) + 40, int(round(pr["y"])) + 40
+            wide = Image.fromarray(big[cy - 20:cy + 20, cx - 20:cx + 20]).resize((320, 320), Image.LANCZOS)
+            card = {k: q[k] for k in ("label", "match", "wide_choice", "box_choice", "sq20_choice")}
+            card["img"] = {"wide": jpg(wide, f"c3_{i:02d}_wide.jpg", 150),
+                           "box": jpg(open_(f"{Y}/crops/{i:02d}_box.png"), f"c3_{i:02d}_box.jpg", 150),
+                           "sq20": jpg(open_(f"{Y}/crops/{i:02d}_sq20.png"), f"c3_{i:02d}_sq20.jpg", 150)}
+            cards3.append(card)
+    ex_i = next(int(q["i"]) for q in R3 if q["label"] == "Statue" and q["match"] == "FP")
+    c3 = {"summary": S3, "cards": cards3, "manifest": manifest(f"{Y}/manifest.json"),
+          "example": {"label": R3[ex_i]["label"], "wide": f"img/c3_{ex_i:02d}_wide.jpg", "box": f"img/c3_{ex_i:02d}_box.jpg",
+                      "sq20": f"img/c3_{ex_i:02d}_sq20.jpg",
+                      "option": pngf(legend(next(e for e in entries if e["label"] == "Artwork"), 8).resize((150, 150), Image.LANCZOS), "c3_opt_artwork.png")}}
+
     data = {"tabs": [{"id": "run-1", "title": "Run 1 · baseline", "date": "2026-11-20"},
                      {"id": "change-1", "title": "Change 1 · batched screening", "date": "2026-11-20"},
-                     {"id": "change-2", "title": "Change 2 · Choice check", "date": "2026-11-20"}],
-            "base": base, "c1": c1, "c2": c2}
+                     {"id": "change-2", "title": "Change 2 · Choice check", "date": "2026-11-20"},
+                     {"id": "change-3", "title": "Change 3 · tighter crops", "date": "2026-11-20"}],
+            "base": base, "c1": c1, "c2": c2, "c3": c3}
     tpl = open(os.path.join(os.path.dirname(__file__), "templates", "runlog.html")).read()
     open(os.path.join(O, "index.html"), "w").write(tpl.replace("/*DATA*/null", json.dumps(data, separators=(",", ":"))))
     files = sorted("img/" + f for f in os.listdir(I))

@@ -184,11 +184,29 @@ rule exp_multiimage:
         "--demo-report {input.report} --tiles 8 --seed 17 {params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
 
 
+# Not part of `all`. Paid (cached): change 3, tighter crops for the Choice check
+rule exp_crop:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        report=f"{OUT}/demo_tile/report.json",
+        choice=f"{OUT}/exp_multiimage/choice.csv",
+    output:
+        summary=f"{OUT}/exp_crop/summary.json",
+        choices=f"{OUT}/exp_crop/choices.csv",
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/exp_crop.log"
+    shell:
+        "{ML} mapdig exp-crop --map {input.map} --symbols {input.symbols} --demo-report {input.report} "
+        "--baseline-choice {input.choice} --margin 3 {params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
+
+
 # Run-log page (one tab per run / method change); rebuild after any experiment.
 rule runlog:
     input:
         f"{OUT}/demo_tile/report.json",
         f"{OUT}/exp_multiimage/summary.json",
+        f"{OUT}/exp_crop/summary.json",
         "src/mapdig/templates/runlog.html",
     output: "out/runlog/index.html"
     shell: "{ML} mapdig runlog --exp {OUT} --out out/runlog"
