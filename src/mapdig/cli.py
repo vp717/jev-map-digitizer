@@ -14,6 +14,7 @@ STAGES = {
     "read-legend":   ("mapdig.legend_read", "add_args", "run", "Claude Opus reads the legend; code crops symbols"),
     "demo-tile":     ("mapdig.demo", "add_args", "run", "whole Jev pipeline on one tile, with intermediate images"),
     "exp-multiimage": ("mapdig.exp_multi", "add_args", "run", "batched screening and Choice check vs current method"),
+    "runlog":        ("mapdig.runlog", "add_args", "run", "build the run-log page (one tab per run/change)"),
     "pilot-jev":     ("mapdig.pilot", "add_args", "run", "small Jev localisation pilot across magnifications"),
 }
 

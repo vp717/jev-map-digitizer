@@ -182,3 +182,13 @@ rule exp_multiimage:
     shell:
         "{ML} mapdig exp-multiimage --map {input.map} --gt {input.gt} --symbols {input.symbols} "
         "--demo-report {input.report} --tiles 8 --seed 17 {params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
+
+
+# Run-log page (one tab per run / method change); rebuild after any experiment.
+rule runlog:
+    input:
+        f"{OUT}/demo_tile/report.json",
+        f"{OUT}/exp_multiimage/summary.json",
+        "src/mapdig/templates/runlog.html",
+    output: "out/runlog/index.html"
+    shell: "{ML} mapdig runlog --exp {OUT} --out out/runlog"

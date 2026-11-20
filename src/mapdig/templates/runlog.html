@@ -1,0 +1,461 @@
+<title>Freiburg Tile Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a run log. Tabs across the top, one per run or method change; each panel reads top to bottom: what changed, how measured, result, caveats */
+:root {
+  --bg: #f4f6f4; --surface: #ffffff; --ink: #1d2622; --muted: #5a6762; --rule: #d6ddd8; --code: #eef2ef;
+  --accent: #c2187a; --tp: #1a9e3f; --fp: #c2187a; --fn: #e07b00; --absent: #9aa7a0; --before: #6b7c74; --after: #2d6fb5;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131a17; --surface: #1b2420; --ink: #e2e9e5; --muted: #98a59f; --rule: #2d3833; --code: #222d29;
+  --accent: #f06bb3; --tp: #5cc97f; --fp: #f06bb3; --fn: #f5a442; --absent: #5f6d66; --before: #93a49c; --after: #6fa8e8; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #131a17; --surface: #1b2420; --ink: #e2e9e5; --muted: #98a59f; --rule: #2d3833; --code: #222d29;
+  --accent: #f06bb3; --tp: #5cc97f; --fp: #f06bb3; --fn: #f5a442; --absent: #5f6d66; --before: #93a49c; --after: #6fa8e8; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 17px/1.6 var(--font-body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 32px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.1; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.2rem, 5.5vw, 3.2rem); font-weight: 700; }
+h2 { font-size: 1.8rem; font-weight: 600; display: flex; gap: 12px; align-items: baseline; }
+h2 .n { font-family: var(--font-mono); font-size: 0.95rem; color: var(--accent); }
+h3 { font-size: 1.25rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.top { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--rule); padding-bottom: 18px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button { font: 600 1.05rem var(--font-display); padding: 7px 16px; border-radius: 999px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+.tabs button small { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+.tabs button[aria-selected="true"] { border-color: var(--accent); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tabs button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panel { display: flex; flex-direction: column; gap: 52px; }
+section, .phead { display: flex; flex-direction: column; gap: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.verdict { border-left: 4px solid var(--accent); padding: 4px 0 4px 14px; font-size: 1.08rem; max-width: 70ch; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat b { font-family: var(--font-display); font-size: 1.9rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.85rem; color: var(--muted); }
+.stat em { font-style: normal; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; list-style: none; padding: 0; margin: 0; counter-reset: s; }
+.steps li { counter-increment: s; border-top: 3px solid var(--accent); padding-top: 8px; font-size: 0.92rem; }
+.steps li::before { content: counter(s); font-family: var(--font-mono); color: var(--accent); margin-right: 6px; }
+.steps li b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+figure img { width: 100%; height: auto; display: block; border: 1px solid var(--rule); border-radius: 4px; }
+.pix { image-rendering: pixelated; }
+figcaption, .cap { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+.crops { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.crop { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.crop img { height: 48px; width: auto; image-rendering: pixelated; }
+.crop span { font-size: 0.72rem; line-height: 1.2; }
+.crop em { font-family: var(--font-mono); font-style: normal; font-size: 0.68rem; color: var(--muted); }
+.note { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--muted); max-width: 70ch; }
+.bars { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.bar { display: grid; grid-template-columns: 150px 1fr 70px; gap: 10px; align-items: center; font-size: 0.85rem; min-width: 420px; }
+.bar .lab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .track { position: relative; height: 14px; background: var(--bg); border-radius: 2px; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px; }
+.bar .thr { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 0; border-left: 2px dashed var(--ink); opacity: 0.55; }
+.bar .val { font-family: var(--font-mono); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.bar.missed .lab { color: var(--fn); font-weight: 600; }
+.axis { display: grid; grid-template-columns: 150px 1fr 70px; gap: 10px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); min-width: 420px; }
+.axis .ticks { display: flex; justify-content: space-between; }
+.key { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.82rem; color: var(--muted); }
+.key i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+.frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 18px; }
+.frame { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.frame .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.frame .pair img { width: 100%; border-radius: 3px; border: 1px solid var(--rule); }
+.frame .capr { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); }
+.pill { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.TP, .pill.good { color: var(--tp); } .pill.FP, .pill.bad { color: var(--fp); } .pill.FN, .pill.warn { color: var(--fn); } .pill.neutral { color: var(--muted); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; min-width: 520px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+td.num, th.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+tr:last-child td { border-bottom: none; }
+tr.hl td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.errs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.err { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.err b { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; }
+.err .count { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); }
+pre { background: var(--code); border-radius: 6px; padding: 12px 14px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.78rem; margin: 0; line-height: 1.5; }
+.ba { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .ba { grid-template-columns: 1fr; } }
+.ba > div { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; border-top: 4px solid var(--before); }
+.ba > div.after { border-top-color: var(--after); }
+.ba h3 .tag { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-left: 8px; }
+.same { display: flex; flex-wrap: wrap; gap: 6px; }
+.same span { font-family: var(--font-mono); font-size: 0.76rem; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 8px; }
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+.strip img { width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 3px; image-rendering: pixelated; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tilecard { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; }
+.tilecard img { width: 100%; border-radius: 3px; }
+.tilecard.hot { border-color: var(--accent); }
+.scatter { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 12px; }
+.scatter svg { width: 100%; height: auto; max-width: 520px; display: block; margin: 0 auto; }
+.scatter text { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; border-top: 4px solid var(--rule); min-width: 0; }
+.card.good { border-top-color: var(--tp); } .card.bad { border-top-color: var(--fp); } .card.warn { border-top-color: var(--fn); }
+.card img { width: 100%; border-radius: 3px; border: 1px solid var(--rule); }
+.card .row { display: flex; justify-content: space-between; gap: 6px; }
+.card .row span:first-child { color: var(--muted); }
+.card .row b { font-weight: 600; text-align: right; }
+footer { border-top: 1px solid var(--rule); padding-top: 18px; color: var(--muted); font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
+</style>
+
+<div class="wrap">
+<div class="top">
+  <span class="eyebrow">map-digitizer · phase 1 · run log</span>
+  <h1>Freiburg Tile Walkthrough</h1>
+  <p>One 640&nbsp;px OpenStreetMap tile of central Freiburg, taken through the legend-driven pipeline. The first tab is the baseline run. Each later tab is one change to the method: exactly what changed, how it was measured, and the result before and after.</p>
+  <div class="tabs" role="tablist" id="tabs"></div>
+</div>
+
+<!-- ======================= TAB: RUN 1 ======================= -->
+<div class="panel" id="panel-run-1" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="b-meta"></div>
+  <p class="verdict">Baseline: Opus reads the legend; Jev screens all 25 classes on the tile, then searches each screened-in class with a box-and-inpaint loop on 160&nbsp;px sub-tiles.</p>
+  <div class="stats" id="b-stats"></div>
+</div>
+<section>
+  <h2>The pipeline</h2>
+  <ol class="steps">
+    <li><b>Read legend</b><br>Opus returns labels and symbol boxes; code crops.</li>
+    <li><b>Choose tile</b><br>640&nbsp;px window with the most classes.</li>
+    <li><b>Screen</b><br>Jev: is this symbol anywhere in the tile? (×2)</li>
+    <li><b>Search loop</b><br>Box, inpaint, ask again on 160&nbsp;px sub-tiles (×8).</li>
+    <li><b>Georeference</b><br>Merge, convert to EPSG:3857, write GeoPackage.</li>
+    <li><b>Score</b><br>Match to render-diff truth within 7&nbsp;px.</li>
+  </ol>
+</section>
+<section>
+  <h2><span class="n">1</span>Read the legend</h2>
+  <p>The legend sheet is generated from openstreetmap-carto's own icons at map scale. Opus 5.5 gets it enlarged ×3 and returns JSON: each entry's label and the pixel box of its symbol. Code tightens each box to the symbol's non-background pixels and cuts it out of the sheet. Nothing is redrawn.</p>
+  <div class="two">
+    <figure><img class="pix" data-b="legend_sheet" alt="Generated legend sheet with 25 entries"><figcaption>Input: the legend sheet (shown ×2).</figcaption></figure>
+    <figure><img class="pix" data-b="legend_read" alt="Legend sheet with Opus boxes in pink and tightened crops in green"><figcaption>Opus boxes (pink) and the tightened crops (green).</figcaption></figure>
+  </div>
+  <p id="b-legend-text"></p>
+  <div class="crops" id="b-crops"></div>
+</section>
+<section>
+  <h2><span class="n">2</span>Choose the tile</h2>
+  <p id="b-tile-text"></p>
+  <div class="two">
+    <figure><img data-b="overview" alt="Freiburg centre render with the tile outlined"><figcaption>Freiburg centre at zoom&nbsp;17, tile outlined.</figcaption></figure>
+    <figure><img data-b="tile" alt="The 640 pixel tile"><figcaption>The tile at native resolution, 640 × 640&nbsp;px.</figcaption></figure>
+  </div>
+</section>
+<section>
+  <h2><span class="n">3</span>Screen every class</h2>
+  <p>The whole tile is shown once per class, enlarged ×2, with that class's legend symbol: 25 separate calls. Only classes scoring 0.5 or more go on to the search loop. The legend symbol is enlarged by the same factor and padded to Jev's 280&nbsp;px minimum, so it keeps the map's scale.</p>
+  <div class="key"><span><i style="background:var(--tp)"></i>class present in tile</span><span><i style="background:var(--absent)"></i>class absent</span><span>dashed line: threshold 0.5</span><span style="color:var(--fn);font-weight:600">orange label: present but screened out</span></div>
+  <div class="bars" id="b-bars"></div>
+  <p id="b-screen-text"></p>
+</section>
+<section>
+  <h2><span class="n">4</span>Search loop</h2>
+  <p>For each screened-in class, the tile is cut into 25 sub-tiles of 160&nbsp;px (overlapping by 40&nbsp;px), each enlarged ×8 to 1,280&nbsp;px. A 14&nbsp;px icon then appears at about 112&nbsp;px, the size where the pilot found Jev's boxes reliable. Each call asks whether an instance is left and where one is. If yes, the box centre becomes a point and the box is inpainted from its surroundings. The sub-tile is then asked again. It stops below 0.5, or when the box lands on painted-out pixels.</p>
+  <p class="note">Every class works on its own copy of the tile, so a symbol removed in one sub-tile is already gone when an overlapping sub-tile is searched.</p>
+  <div class="frames" id="b-frames"></div>
+  <div class="two">
+    <figure><img data-b="tile" alt="Original tile"><figcaption>Before: the tile.</figcaption></figure>
+    <figure><img data-b="memorial_after" alt="Tile after the Memorial loop"><figcaption>After the Memorial loop: 22 boxes inpainted (20 correct, 1 off-centre by 12 px, 1 duplicate). Other symbols are untouched.</figcaption></figure>
+  </div>
+  <p id="b-loop-text"></p>
+</section>
+<section>
+  <h2><span class="n">5–6</span>Georeference and score</h2>
+  <p id="b-score-text"></p>
+  <div class="key"><span><i style="background:var(--tp)"></i>× correct (within 7&nbsp;px, right class)</span><span><i style="background:var(--fp)"></i>× false positive</span><span><i style="background:var(--fn)"></i>○ missed symbol</span></div>
+  <figure><img data-b="result" alt="Tile with correct, false and missed detections marked"><figcaption>Result on the tile, enlarged ×2.</figcaption></figure>
+  <div class="tablewrap"><table><thead><tr><th>Class</th><th class="num">In tile</th><th class="num">Predicted</th><th class="num">Correct</th><th class="num">Recall</th><th class="num">Precision</th></tr></thead><tbody id="b-classes"></tbody></table></div>
+</section>
+<section>
+  <h2>What went wrong</h2>
+  <div class="errs">
+    <div class="err"><span class="count">10 of 20 false positives</span><b>Look-alike classes claim the same icon</b><p>Each class is searched on its own, so one icon can be claimed twice. Statue fired on Artwork four times and on Bust once. Pharmacy fired on Doctor twice, and Taxi on Bus stop. → tested in <a href="#change-2">Change 2</a>.</p></div>
+    <div class="err"><span class="count">5 false positives = 5 misses</span><b>Right icon, 8–12&nbsp;px off</b><p>The box landed off-centre on partial icons at sub-tile edges or between neighbours. With a 12&nbsp;px tolerance F1 would be about 0.86.</p></div>
+    <div class="err"><span class="count">3 of 6 Parking</span><b>A colour the legend doesn't show</b><p>All three missed Parking icons are the pale-blue private-parking variant. In each case Jev answered "not present" (P 0.16–0.31). The prompt says "same shape and colour".</p></div>
+    <div class="err"><span class="count">7 of 18 Traffic signals</span><b>Dense clusters</b><p>Signals around junctions sit about 12&nbsp;px apart; boxes land between them, and inpainting one can clip its neighbour.</p></div>
+    <div class="err"><span class="count">about 5 false positives</span><b>Apparent hallucinations</b><p>Fitness station twice, Church twice, Traffic signals once, with no true icon nearby. Box confidence was high on some (0.87–0.90).</p></div>
+    <div class="err"><span class="count">2 classes</span><b>Screened out</b><p>Bust (P&nbsp;=&nbsp;0.44) and Shelter (P&nbsp;=&nbsp;0.16) each had one icon and never reached the loop.</p></div>
+  </div>
+</section>
+<section>
+  <h2>Cost and time</h2>
+  <div class="tablewrap"><table><thead><tr><th>Item</th><th class="num">Calls</th><th class="num">Input tokens</th><th class="num">Cost</th></tr></thead><tbody id="b-cost"></tbody></table></div>
+  <p id="b-cost-text"></p>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 1 ======================= -->
+<div class="panel" id="panel-change-1" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c1-meta"></div>
+  <p class="verdict" id="c1-verdict"></p>
+  <div class="stats" id="c1-stats"></div>
+</div>
+<section>
+  <h2>What changed</h2>
+  <p>Only the screening step (step 3 of the baseline). Instead of one call per class, all 25 classes are asked in a single call about the same tile image.</p>
+  <div class="ba">
+    <div><h3>Before<span class="tag">25 calls per tile</span></h3>
+      <pre id="c1-before"></pre>
+      <p class="cap">Repeated 25 times, once per class. Each call sends the 1,280&nbsp;px tile and one 280&nbsp;px legend excerpt.</p></div>
+    <div class="after"><h3>After<span class="tag">1 call per tile</span></h3>
+      <pre id="c1-after"></pre>
+      <p class="cap">One call. The tile is sent once; all 25 legend excerpts are attached; 25 yes/no questions are answered together.</p></div>
+  </div>
+  <h3>Kept identical</h3>
+  <div class="same"><span>model jev-1.14.0</span><span>prompt v1, word for word, per class</span><span>tile image bytes (640 px ×2, Lanczos)</span><span>legend excerpt bytes (×2, padded to 280 px)</span><span>threshold 0.5</span><span>search loop untouched</span></div>
+  <h3>The 25 legend excerpts attached together in the batched call</h3>
+  <div class="strip" id="c1-strip"></div>
+</section>
+<section>
+  <h2>How it was measured</h2>
+  <p>One tile gives only 25 yes/no labels, so both methods ran on 8 non-overlapping 640&nbsp;px tiles of Freiburg centre: the baseline tile (tile&nbsp;0) and 7 random tiles drawn with seed 17. That gives 200 class–tile pairs. A class is truly present in a tile if the render-diff ground truth has at least one of its icons there.</p>
+  <figure><img id="c1-overview" alt="Freiburg centre with the 8 test tiles outlined"><figcaption>The 8 test tiles. Tile 0 is the baseline tile.</figcaption></figure>
+  <div class="tiles" id="c1-tiles"></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <div class="tablewrap"><table><thead><tr><th>Screening</th><th class="num">Accuracy @0.5</th><th class="num">AUC</th><th class="num">Missed present</th><th class="num">False present</th><th class="num">Calls</th><th class="num">Input tokens</th><th class="num">Cost</th><th class="num">Time</th></tr></thead><tbody id="c1-table"></tbody></table></div>
+  <p id="c1-agree"></p>
+  <div class="scatter"><svg id="c1-scatter" viewBox="0 0 400 400" role="img" aria-label="Scatter of P(present) single versus batch for 200 class-tile pairs"></svg>
+    <div class="key" style="justify-content:center"><span><i style="background:var(--tp)"></i>class present</span><span><i style="background:var(--absent)"></i>class absent</span><span>dashed: 0.5 thresholds and the diagonal</span></div></div>
+  <h3>Where cost goes</h3>
+  <p id="c1-tokens"></p>
+</section>
+<section>
+  <h2>Where the two disagree</h2>
+  <p>6 of 200 decisions differ at the 0.5 threshold. Five are near the threshold on both sides. One is not:</p>
+  <div class="tablewrap"><table><thead><tr><th>Tile</th><th>Class</th><th class="num">Icons in tile</th><th class="num">P single</th><th class="num">P batch</th><th>Which is right</th></tr></thead><tbody id="c1-dis"></tbody></table></div>
+  <div class="two">
+    <figure><img id="c1-ex-tile" alt="Tile 6"><figcaption id="c1-ex-cap"></figcaption></figure>
+    <figure style="max-width:220px"><img class="pix" id="c1-ex-leg" alt="Doctor legend excerpt"><figcaption>The Doctor legend excerpt sent in both versions (identical bytes).</figcaption></figure>
+  </div>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>8 tiles, all in one dense city area. The rural area isn't included yet.</li>
+    <li>The tile-6 Doctor failure shows batching can drop a class that single calls catch. One case in 200 can't tell us how often this happens.</li>
+    <li>Time is the sum of per-call latencies recorded when each call was first made, run sequentially. Single calls run in parallel would close the time gap, but not the cost gap.</li>
+    <li>Both methods miss about 1 in 5 present classes on these tiles, against 2 in 20 on the baseline tile. Screening recall is a problem whichever method is used.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 2 ======================= -->
+<div class="panel" id="panel-change-2" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c2-meta"></div>
+  <p class="verdict" id="c2-verdict"></p>
+  <div class="stats" id="c2-stats"></div>
+</div>
+<section>
+  <h2>What changed</h2>
+  <p>A new step after the search loop. The loop itself is unchanged and wasn't rerun; this uses the baseline run's 94 detections.</p>
+  <div class="ba">
+    <div><h3>Before<span class="tag">loop output is final</span></h3>
+      <pre id="c2-before"></pre></div>
+    <div class="after"><h3>After<span class="tag">+1 Choice call per detection</span></h3>
+      <pre id="c2-after"></pre></div>
+  </div>
+  <h3>The crop</h3>
+  <p>40 × 40&nbsp;px of the <em>original</em> tile (before any inpainting), centred on the detection point, enlarged ×8 to 320&nbsp;px. The icon sits in the middle with some surrounding context.</p>
+  <h3>The 26 options Jev chooses between</h3>
+  <p>The 25 legend excerpts as image options, the same ×8 excerpts the loop used, plus a text option, "none of these", described as background, text or another symbol.</p>
+  <div class="strip" id="c2-options"></div>
+  <h3>Keep rules</h3>
+  <div class="tablewrap"><table><thead><tr><th>Rule</th><th>Keep a detection when Jev picks…</th></tr></thead><tbody>
+    <tr><td><b>strict</b> (as run)</td><td>its own class only. "None of these" or another class → removed.</td></tr>
+    <tr><td><b>gentle</b> (same answers, re-scored)</td><td>its own class or "none of these". Another legend class → removed.</td></tr>
+  </tbody></table></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Scored on the baseline tile's 89 true icons, same rule as before: one-to-one, same class, within 7&nbsp;px.</p>
+  <div class="tablewrap"><table><thead><tr><th></th><th class="num">Detections</th><th class="num">Correct</th><th class="num">False pos.</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody id="c2-table"></tbody></table></div>
+  <p id="c2-cost"></p>
+</section>
+<section>
+  <h2>Every detection the check touched</h2>
+  <p>The 20 baseline false positives and the 6 correct detections the strict rule removed. Each card shows the crop Jev saw, the class the loop claimed, and the option Jev chose.</p>
+  <div class="key"><span><i style="background:var(--tp)"></i>false positive removed</span><span><i style="background:var(--fp)"></i>false positive kept</span><span><i style="background:var(--fn)"></i>correct detection lost</span></div>
+  <div class="cards" id="c2-cards"></div>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>One tile, 94 detections. The removals are clear-cut cases, but the precision and recall figures come from a small sample.</li>
+    <li>The gentle rule was chosen after looking at these same answers, so its numbers are optimistic until tested on new tiles.</li>
+    <li>Jev confirmed the two Fitness station "hallucinations" at 0.93–0.95. Either a similar icon exists that the ground truth doesn't count, or Jev is consistently wrong there. This still needs checking by eye.</li>
+  </ul>
+</section>
+</div>
+
+<footer>
+  <span>Ground truth: render diff of openstreetmap-carto v5.9.0, OSM snapshot 2026-11-18T21:21:02Z. Jev <code>jev-1.14.0</code>, prompt v1. Legend reader <code>claude-opus-5-5</code>.</span>
+  <span>Every model call is cached by the content of its request; all tabs regenerate offline with <code>mapdig runlog</code>.</span>
+</footer>
+</div>
+
+<script>
+const D = /*DATA*/null;
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 2) => v == null ? "–" : Number(v).toFixed(d);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const usd = v => "$" + Number(v).toFixed(4);
+const stat = (v, l, e) => `<div class="stat"><b>${v}</b><span>${l}</span>${e ? `<em>${e}</em>` : ""}</div>`;
+const metaLine = (m, extra) => [...extra, m ? `commit ${m.commit}${m.dirty ? " (dirty)" : ""}` : null, m ? `run ${m.started.slice(0, 16).replace("T", " ")} UTC` : null].filter(Boolean).map(s => `<span>${s}</span>`).join("");
+
+// ---------- tabs ----------
+$("tabs").innerHTML = D.tabs.map(t => `<button type="button" role="tab" id="tab-${t.id}" data-id="${t.id}">${esc(t.title)}<small>${t.date}</small></button>`).join("");
+function show(id) {
+  if (!D.tabs.some(t => t.id === id)) id = D.tabs[0].id;
+  D.tabs.forEach(t => { $("panel-" + t.id).hidden = t.id !== id; $("tab-" + t.id).setAttribute("aria-selected", t.id === id); });
+}
+[...$("tabs").children].forEach(b => b.addEventListener("click", () => { try { history.replaceState(null, "", "#" + b.dataset.id); } catch (e) {} show(b.dataset.id); }));
+window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+document.addEventListener("click", e => { const a = e.target.closest('a[href^="#"]'); if (a) { e.preventDefault(); const id = a.getAttribute("href").slice(1); try { history.replaceState(null, "", "#" + id); } catch (er) {} show(id); window.scrollTo(0, 0); } });
+
+// ---------- run 1 ----------
+(() => {
+  const B = D.base, m = B.metrics, c = B.cost, t = B.tile, L = B.legend;
+  document.querySelectorAll("[data-b]").forEach(img => img.src = B.images[img.dataset.b]);
+  $("b-meta").innerHTML = metaLine(B.manifest, [`tile origin (${t.x}, ${t.y}) px`, `zoom 17 · ~${t.ground_m_approx} m across`]);
+  $("b-stats").innerHTML = stat(fmt(m.f1), "F1") + stat(fmt(m.precision), "precision") + stat(fmt(m.recall), "recall") +
+    stat(fmt(m.median_err_m_ground, 1) + " m", "median position error") + stat("$" + fmt(c.total_usd), "API cost") + stat(c.jev_calls + 1, "model calls");
+  $("b-legend-text").textContent = `Opus found all ${L.entries_read} entries with exactly the printed labels. Its boxes had a median IoU of ${fmt(L.median_iou_read)} with the true symbol boxes; after tightening, every crop matched its true box exactly (median IoU ${fmt(L.median_iou_crop)}). One call: ${L.input_tokens.toLocaleString()} input and ${L.output_tokens} output tokens, $${fmt(L.cost_usd, 3)}, ${fmt(L.latency_s, 1)} s.`;
+  $("b-crops").innerHTML = B.crops.map(k => `<div class="crop"><img src="${k.img}" alt=""><span>${esc(k.label)}</span><em>IoU ${fmt(k.iou_read)}→${fmt(k.iou_crop)}</em></div>`).join("");
+  $("b-tile-text").textContent = `Chosen automatically as the 640 px window holding the most classes: ${t.classes_present} of the 25 classes and ${t.icons_present} icons, about ${t.ground_m_approx} m across. It is the busiest square of the city-centre render, so it is a hard case for both accuracy and cost.`;
+  const S = [...B.screening].sort((a, b) => b.p_present - a.p_present);
+  $("b-bars").innerHTML = `<div class="axis"><span></span><div class="ticks"><span>0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1</span></div><span>in tile</span></div>` +
+    S.map(s => `<div class="bar${s.n_true > 0 && !s.screened_in ? " missed" : ""}"><span class="lab" title="${esc(s.label)}">${esc(s.label)}</span><div class="track"><div class="fill" style="width:${s.p_present * 100}%;background:${s.n_true ? "var(--tp)" : "var(--absent)"}"></div><div class="thr"></div></div><span class="val">${fmt(s.p_present)} · ${s.n_true}</span></div>`).join("");
+  const present = B.screening.filter(s => s.n_true > 0), inn = B.screening.filter(s => s.screened_in);
+  $("b-screen-text").textContent = `${inn.length} classes went on to the search loop, all of them really in the tile. The ${B.screening.length - present.length} absent classes were all screened out. Two present classes were missed: Bust and Shelter. Screening took ${B.screening.length} calls.`;
+  $("b-frames").innerHTML = B.frames.map(f => `<div class="frame"><div class="pair"><img src="${f.before}" alt="${esc(f.label)} sub-tile with Jev's box"><img src="${f.after}" alt="Same sub-tile after inpainting"></div>
+    <div class="capr"><span class="pill ${f.match}">${f.match === "TP" ? "correct" : f.match === "FP" ? "false positive" : f.match}</span><span>${esc(f.label)}</span><span>sub-tile (${f.sub.join(", ")})</span><span>pass ${f.pass}</span><span>P ${fmt(f.p_present)}</span><span>box conf ${fmt(f.box_conf)}</span></div></div>`).join("");
+  const A = B.actions;
+  $("b-loop-text").textContent = `Across the ${inn.length} classes the loop made ${Object.values(A).reduce((x, y) => x + y, 0)} calls: ${A["detect + inpaint"] || 0} found and removed a symbol, ${A["stop: not present"] || 0} ended a sub-tile with "none left", and ${A["stop: box on removed area"] || 0} stopped because the box landed on painted-out pixels.`;
+  $("b-score-text").textContent = `Duplicates within 4 px were merged. Pixel centres were converted to EPSG:3857 with the GeoTIFF's transform and written to predictions.gpkg. Matching is one-to-one, same class, within 7 px (about 5.6 m on the ground): ${m.tp} correct, ${m.fp} false positives, ${m.fn} missed. Correct points were a median ${fmt(m.median_err_px, 1)} px (${fmt(m.median_err_m_ground, 1)} m) from the true icon centre.`;
+  $("b-classes").innerHTML = Object.entries(m.per_class).sort((a, b) => b[1].true - a[1].true || a[0].localeCompare(b[0]))
+    .map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v.true}</td><td class="num">${v.pred}</td><td class="num">${v.tp}</td><td class="num">${v.true ? fmt(v.tp / v.true) : "–"}</td><td class="num">${v.pred ? fmt(v.tp / v.pred) : "–"}</td></tr>`).join("");
+  $("b-cost").innerHTML = [["Opus 5.5: read legend", 1, `${L.input_tokens.toLocaleString()} in / ${L.output_tokens} out`, c.opus_usd],
+    ["Jev: screening", B.screening.length, "", null], ["Jev: search loop", c.jev_calls - B.screening.length, "", null],
+    ["Jev total", c.jev_calls, c.jev_input_tokens.toLocaleString(), c.jev_usd], ["Total", c.jev_calls + 1, "", c.total_usd]]
+    .map(([a, b, t2, u]) => `<tr><td>${a}</td><td class="num">${b}</td><td class="num">${t2}</td><td class="num">${u == null ? "" : "$" + fmt(u, 3)}</td></tr>`).join("");
+  $("b-cost-text").textContent = `Each Jev call costs about 5,070 input tokens, so cost follows the number of calls. The loop ran sequentially in ${Math.round(B.timing_s.search_loop)} s. This dense tile cost about $${fmt(c.total_usd / ((t.ground_m_approx / 1000) ** 2), 2)} per km².`;
+})();
+
+// ---------- change 1 ----------
+(() => {
+  const C = D.c1, S = C.summary, s1 = S.single, b1 = S.batch, cs = S.cost.single, cb = S.cost.batch;
+  $("c1-meta").innerHTML = metaLine(C.manifest, ["stage exp-multiimage", `${S.tiles} tiles · ${S.pairs} class–tile pairs`]);
+  $("c1-verdict").textContent = `Screening quality stayed about the same (accuracy ${fmt(s1.accuracy)} → ${fmt(b1.accuracy)}), at ${(cs.usd / cb.usd).toFixed(0)}× lower cost and ${(cs.latency_s / cb.latency_s).toFixed(0)}× less time. One case went badly wrong: batching missed a class with 9 icons.`;
+  $("c1-stats").innerHTML = stat(fmt(s1.accuracy) + " → " + fmt(b1.accuracy), "accuracy, single → batch") +
+    stat(fmt(S.agreement_at_0_5 ?? S["agreement_at_0.5"]), "decisions identical") + stat(usd(cs.usd) + " → " + usd(cb.usd), "cost for 8 tiles") +
+    stat(fmt(cs.latency_s, 0) + " s → " + fmt(cb.latency_s, 0) + " s", "time, sequential") + stat(cs.calls + " → " + cb.calls, "calls");
+  $("c1-before").textContent =
+`for label, legend in classes:          # 25 calls per tile
+  system_one(
+    state = {"map": <tile 1280×1280 PNG>},
+    questions = {
+      "present": Noul("Does \`map\` contain at least one
+         instance of the map symbol shown in this legend
+         excerpt <legend>, which the legend labels '<label>'?
+         Only count symbols drawn exactly like it (same shape
+         and colour); ignore patches of plain background.")
+    })                                   # 1 legend excerpt attached`;
+  $("c1-after").textContent =
+`system_one(                             # 1 call per tile
+  state = {"map": <tile 1280×1280 PNG>},
+  questions = {
+    "q00": Noul(<same prompt> , '<Memorial>' ,  <legend 0>),
+    "q01": Noul(<same prompt> , '<Statue>'   ,  <legend 1>),
+    ...
+    "q24": Noul(<same prompt> , '<Supermarket>', <legend 24>),
+  })                                     # 25 legend excerpts attached`;
+  $("c1-strip").innerHTML = C.legend_strip.map(l => `<img src="${l.img}" alt="${esc(l.label)}" title="${esc(l.label)}">`).join("");
+  $("c1-overview").src = C.overview;
+  $("c1-tiles").innerHTML = C.per_tile.map(t => `<div class="tilecard${t.disagree ? " hot" : ""}"><img src="${t.img}" alt="Tile ${t.tile}"><b>Tile ${t.tile}</b>
+    <span class="mono">${t.present} classes · ${t.icons} icons</span><span class="mono">acc ${fmt(t.acc_single)} → ${fmt(t.acc_batch)}${t.disagree ? ` · ${t.disagree} differ` : ""}</span></div>`).join("");
+  $("c1-table").innerHTML = [["single (before)", s1, cs], ["batch (after)", b1, cb]].map(([n, s, c]) =>
+    `<tr${n.startsWith("batch") ? ' class="hl"' : ""}><td>${n}</td><td class="num">${fmt(s.accuracy, 3)}</td><td class="num">${fmt(s.auc, 3)}</td><td class="num">${s.missed_present} / ${s.n_present}</td><td class="num">${s.false_present} / ${s.n_absent}</td><td class="num">${c.calls}</td><td class="num">${c.tokens.toLocaleString()}</td><td class="num">${usd(c.usd)}</td><td class="num">${fmt(c.latency_s, 1)} s</td></tr>`).join("");
+  $("c1-agree").textContent = `The two methods give the same yes/no decision on ${Math.round(S["agreement_at_0.5"] * 200)} of 200 pairs. Their probabilities correlate at ${fmt(S.corr)}, with a mean absolute difference of ${fmt(S.mean_abs_diff, 3)}.`;
+  const sv = $("c1-scatter"), P = 40, Z = 340, X = v => P + v * Z, Y = v => 400 - P - v * Z;
+  let g = `<rect x="${P}" y="${400 - P - Z}" width="${Z}" height="${Z}" fill="none" stroke="var(--rule)"/>`;
+  [0, 0.25, 0.5, 0.75, 1].forEach(v => { g += `<text x="${X(v)}" y="${400 - P + 16}" text-anchor="middle">${v}</text><text x="${P - 8}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`; });
+  g += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0.6"/>`;
+  g += `<line x1="${X(0.5)}" y1="${Y(0)}" x2="${X(0.5)}" y2="${Y(1)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0.6"/><line x1="${X(0)}" y1="${Y(0.5)}" x2="${X(1)}" y2="${Y(0.5)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0.6"/>`;
+  C.pairs.forEach(p => { g += `<circle cx="${X(p.p_single)}" cy="${Y(p.p_batch)}" r="3.6" fill="${p.n_true ? "var(--tp)" : "var(--absent)"}" fill-opacity="0.75"><title>tile ${p.tile} · ${esc(p.label)} · single ${p.p_single} · batch ${p.p_batch} · icons ${p.n_true}</title></circle>`; });
+  const ex = C.example.row; g += `<circle cx="${X(ex.p_single)}" cy="${Y(ex.p_batch)}" r="9" fill="none" stroke="var(--accent)" stroke-width="2"/><text x="${X(ex.p_single) - 12}" y="${Y(ex.p_batch) + 4}" text-anchor="end" style="fill:var(--accent)">tile 6 Doctor</text>`;
+  g += `<text x="${X(0.5)}" y="396" text-anchor="middle">P(present), single calls</text><text x="12" y="${Y(0.5)}" text-anchor="middle" transform="rotate(-90 12 ${Y(0.5)})">P(present), batched call</text>`;
+  sv.innerHTML = g;
+  const perTileTok = cb.tokens / cb.calls, perSingle = cs.tokens / cs.calls, legTok = (perTileTok - perSingle) / 24;
+  $("c1-tokens").textContent = `A single call averages ${Math.round(perSingle).toLocaleString()} input tokens; a batched call ${Math.round(perTileTok).toLocaleString()}. The difference is 24 extra legend excerpts, so each 280 px excerpt costs about ${Math.round(legTok)} tokens and the 1,280 px tile about ${Math.round(perSingle - legTok).toLocaleString()}. The single-call method pays for the tile 25 times per tile; batching pays for it once.`;
+  $("c1-dis").innerHTML = C.disagreements.map(d => { const truth = d.n_true > 0, sr = (d.p_single >= 0.5) === truth, br = (d.p_batch >= 0.5) === truth;
+    return `<tr${d.tile === C.example.tile && d.label === "Doctor" ? ' class="hl"' : ""}><td class="mono">${d.tile}</td><td>${esc(d.label)}</td><td class="num">${d.n_true}</td><td class="num">${fmt(d.p_single)}</td><td class="num">${fmt(d.p_batch)}</td><td>${sr ? '<span class="pill good">single</span>' : '<span class="pill good">batch</span>'}</td></tr>`; }).join("");
+  $("c1-ex-tile").src = C.example.img; $("c1-ex-leg").src = C.example.legend;
+  $("c1-ex-cap").textContent = `Tile 6 contains ${ex.n_true} Doctor icons. Single call: P = ${fmt(ex.p_single)} (screened in). Batched call: P = ${fmt(ex.p_batch)} (screened out, so all ${ex.n_true} would be missed). The other 23 answers on this tile agree between the two methods.`;
+})();
+
+// ---------- change 2 ----------
+(() => {
+  const C = D.c2, s = C.summary;
+  $("c2-meta").innerHTML = metaLine(C.manifest, ["stage exp-multiimage", `${C.before.pred} detections on the baseline tile`]);
+  $("c2-verdict").textContent = `The Choice check removed ${s.fp_removed} of ${s.fp_total} false positives, including every look-alike confusion. Precision rose from ${fmt(C.before.precision)} to ${fmt(C.strict.precision)}. It also removed ${s.tp_lost} correct detections, so F1 barely moved (${fmt(C.before.f1, 3)} → ${fmt(C.strict.f1, 3)}). The gentler rule keeps more of the correct detections.`;
+  $("c2-stats").innerHTML = stat(fmt(C.before.precision) + " → " + fmt(C.strict.precision), "precision") + stat(fmt(C.before.recall) + " → " + fmt(C.strict.recall), "recall") +
+    stat(fmt(C.before.f1, 3) + " → " + fmt(C.strict.f1, 3), "F1 (strict)", `gentle ${fmt(C.gentle.f1, 3)}`) + stat(s.fp_removed + " / " + s.fp_total, "false positives removed") + stat(usd(s.cost.usd), "added cost", `${s.cost.calls} calls`);
+  $("c2-before").textContent =
+`search loop (per class, per sub-tile)
+  → box centre becomes a detection
+  → 94 detections, written to the GeoPackage`;
+  $("c2-after").textContent =
+`for each of the 94 detections:
+  system_one(
+    state = {"crop": <40×40 px of the original tile
+                      around the point, ×8 → 320×320 PNG>},
+    questions = {"which": Choice(
+      "Which of these legend symbols is drawn at
+       the centre of \`crop\`?",
+      criteria = {
+        "Memorial": <legend excerpt>,  ... 25 image options,
+        "none of these": "The centre of \`crop\` shows none of
+           these symbols (background, text, or another symbol)."
+      })})
+  keep if choice == detection's class        # strict rule`;
+  $("c2-options").innerHTML = C.options.map(o => `<img src="${o.img}" alt="${esc(o.label)}" title="${esc(o.label)}">`).join("") +
+    `<div style="display:flex;align-items:center;justify-content:center;border:1px dashed var(--rule);border-radius:3px;font-size:0.7rem;text-align:center;padding:4px">none of these</div>`;
+  $("c2-table").innerHTML = [["before (loop output)", C.before], ["after, strict rule", C.strict], ["after, gentle rule*", C.gentle]].map(([n, v], i) =>
+    `<tr${i === 1 ? ' class="hl"' : ""}><td>${n}</td><td class="num">${v.pred}</td><td class="num">${v.tp}</td><td class="num">${v.fp}</td><td class="num">${fmt(v.precision, 3)}</td><td class="num">${fmt(v.recall, 3)}</td><td class="num">${fmt(v.f1, 3)}</td></tr>`).join("") +
+    `<tr><td colspan="7" class="cap">* gentle: same Jev answers, re-scored with the keep rule above. No new calls.</td></tr>`;
+  $("c2-cost").textContent = `The check added ${s.cost.calls} calls (about ${Math.round(s.cost.tokens / s.cost.calls).toLocaleString()} tokens each, because 25 option images are attached), ${usd(s.cost.usd)} and ${fmt(s.cost.latency_s, 0)} s sequential. That is about $${fmt(s.cost.usd / s.cost.calls, 4)} per detection, against the loop's ${C.loop_calls} calls and ${usd(C.loop_usd)} for the same tile.`;
+  $("c2-cards").innerHTML = C.cards.map(c => { const fp = c.match === "FP";
+    const cls = fp ? (c.keep ? "bad" : "good") : "warn", tag = fp ? (c.keep ? "FP kept" : "FP removed") : "correct, lost";
+    const gentle = fp ? (c.gentle_keep ? "kept" : "removed") : (c.gentle_keep ? "kept" : "lost");
+    return `<div class="card ${cls}"><img src="${c.img}" alt="Crop for ${esc(c.label)} detection"><span class="pill ${cls}">${tag}</span>
+      <div class="row"><span>loop said</span><b>${esc(c.label)}</b></div><div class="row"><span>Jev chose</span><b>${esc(c.choice)}</b></div>
+      <div class="row"><span>P(own class)</span><b class="mono">${fmt(c.p_own)}</b></div><div class="row"><span>P(none)</span><b class="mono">${fmt(c.p_none)}</b></div>
+      <div class="row"><span>gentle rule</span><b>${gentle}</b></div></div>`; }).join("");
+})();
+
+show(location.hash.slice(1));
+</script>
