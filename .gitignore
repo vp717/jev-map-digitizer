@@ -1,0 +1,12 @@
+# regenerable or large
+data/
+out/
+cache/
+# secrets
+.env
+# python
+__pycache__/
+*.egg-info/
+.venv/
+# snakemake state
+.snakemake/

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 · What re-runs when you change something?</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+
+<p class="kicker">Lesson 1 · Workflow engines · about 10 minutes</p>
+<h1>What re-runs when you change something?</h1>
+<p class="lede">Four tools can drive the map-digitizer pipeline. The clearest way to tell them apart is one question: <em>when I change X, which steps run again?</em> By the end of this lesson you can answer that for each tool and make the Q1 decision.</p>
+
+<h2>The job a workflow engine does</h2>
+<p>Our pipeline is a chain of steps, each turning files into other files:</p>
+<pre><code>render → groundtruth → split → tiles → detect → calibrate → evaluate → report
+              legend → read-legend ↗</code></pre>
+<p>Run across every area × zoom × scale × k × method, that is hundreds of jobs. A workflow engine does three things for us:</p>
+<ol>
+  <li><b>Expands the grid:</b> turns "every method on every area" into concrete jobs.</li>
+  <li><b>Decides what is stale:</b> skips work whose inputs haven't changed, and redoes work whose inputs have.</li>
+  <li><b>Orders the jobs:</b> runs <code>tiles</code> only after <code>split</code>.</li>
+</ol>
+<p>All four options handle ordering. They differ on the first two.</p>
+
+<h2>Three ways to decide "stale"</h2>
+
+<h3>Make: file timestamps</h3>
+<p>Make rebuilds a file when one of its inputs has a newer modification time. It never looks at file contents. I checked this with GNU Make 4.4.1: after changing an input's contents but setting its timestamp back to the year 2000, <code>make</code> replied <code>'out.txt' is up to date</code>. <a class="cite" href="https://www.gnu.org/software/make/manual/html_node/How-Make-Works.html">[manual]</a></p>
+
+<h3>Snakemake: several recorded triggers</h3>
+<p>By default Snakemake re-runs a job if any of five things changed: <code>code</code>, <code>input</code>, <code>mtime</code>, <code>params</code>, <code>software-env</code>. Its own help says this "guarantees that results are consistent with the workflow code and configuration" (checked in <code>snakemake --help</code>, v9.27.2). <a class="cite" href="https://snakemake.readthedocs.io/en/stable/executing/cli.html">[CLI docs]</a> So a changed parameter passed through a rule's <code>params:</code> re-runs that rule's jobs, even though no file changed.</p>
+
+<h3>DVC: content hashes</h3>
+<p>DVC "calculates a hash of file/dir contents to compare vs. previous versions", and records the hashes in <code>dvc.lock</code>. <a class="cite" href="https://doc.dvc.org/user-guide/pipelines/defining-pipelines">[DVC docs]</a> A file rewritten with identical bytes doesn't count as changed. Each stage also lists the config keys it uses under <code>params</code>, and only those keys affect it. <a class="cite" href="https://doc.dvc.org/user-guide/project-structure/dvcyaml-files">[dvc.yaml]</a></p>
+
+<h3>Your own Python runner: whatever you build</h3>
+<p>You decide the rule. That means writing change detection, the grid expansion and the ordering yourself, and testing them. Bugs there produce stale paper numbers without any error.</p>
+
+<h2>Worked example: change one number</h2>
+<p>You change the matching distance <code>eval.match_px</code> from 7 to 5 in the experiment config. Ideally only <code>evaluate</code> (and <code>report</code>) runs again. Nothing upstream, and no paid API calls.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Tool</th><th>What happens</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><b>Make</b></td><td>Either everything re-runs, or nothing does</td><td>If every step lists <code>config.yaml</code> as an input, its new timestamp makes everything stale, including renders and API calls. If not, nothing notices the change. Timestamps can't tell which key changed.</td></tr>
+<tr><td><b>Snakemake</b></td><td>Only <code>evaluate</code> and <code>report</code> re-run</td><td><code>match_px</code> reaches the rule through <code>params:</code>, and <code>params</code> is a default trigger.</td></tr>
+<tr><td><b>DVC</b></td><td>Only <code>evaluate</code> and <code>report</code> re-run</td><td>The evaluate stage lists <code>eval.match_px</code> under <code>params</code>, so only that stage notices the changed value.</td></tr>
+<tr><td><b>Own runner</b></td><td>Depends on your code</td><td>You would need to track which config keys each step reads.</td></tr>
+</tbody></table></div>
+<aside>This is why Make is weak here: our config is one file with many keys, and Make only knows that the file changed.</aside>
+
+<h2>Expanding the grid</h2>
+<p><b>Snakemake</b> puts the grid in file paths. A <em>wildcard</em> such as <code>{method}</code> in an output path lets one rule cover every value. When you ask for a file, Snakemake reads the wildcard values off its path. <a class="cite" href="https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html">[rules docs]</a></p>
+<pre><code>rule evaluate:
+    input:  "out/runs/{method}/{area}/z{zoom}/predictions.gpkg"
+    output: "out/runs/{method}/{area}/z{zoom}/metrics.json"
+    params: match_px = config["eval"]["match_px"]
+    shell:  "mapdig evaluate {input} --match-px {params.match_px} --out {output}"
+
+rule all:   # ask for the whole grid
+    input: expand("out/runs/{method}/{area}/z{zoom}/metrics.json",
+                  method=METHODS, area=AREAS, zoom=ZOOMS)</code></pre>
+<p><b>DVC</b> puts the grid in the stage definition. <code>matrix</code> creates one stage per combination; the docs' example gives "six stages, one for each combination of <code>model</code> and <code>feature</code>". <a class="cite" href="https://doc.dvc.org/user-guide/project-structure/dvcyaml-files">[dvc.yaml]</a></p>
+<pre><code>stages:
+  evaluate:
+    matrix:
+      method: [jev_loop, jev_verify, template, yolov8, yolso]
+      area: [freiburg_centre, hinterzarten_rural]
+    cmd: mapdig evaluate --method ${item.method} --area ${item.area}
+    params: [eval.match_px]
+    deps:  [out/runs/${item.method}/${item.area}/predictions.gpkg]
+    outs:  [out/runs/${item.method}/${item.area}/metrics.json]</code></pre>
+<p>The difference: Snakemake <em>works out</em> which upstream job a file needs by matching paths, and you list only the final files you want. DVC's dependencies are written out explicitly in each templated stage, so every combination you ever run must be listed.</p>
+
+<h2>Two facts specific to this project</h2>
+<ul>
+  <li><b>Containers.</b> Snakemake's <code>container:</code> directive takes <code>docker://</code> image URLs, but runs them through <em>Apptainer</em>, not the Docker engine. <a class="cite" href="https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html">[deployment docs]</a> We already use Docker Compose, so with either tool the step command would call <code>docker compose run</code> in the shell instead.</li>
+  <li><b>API answers.</b> None of the four tools caches calls to Jev or Opus. That is our own content-addressed cache inside <code>mapdig</code>, whichever tool we choose.</li>
+</ul>
+<p>DVC adds one thing Snakemake doesn't: it keeps outputs in its own cache and can <code>dvc push</code> them to remote storage. <a class="cite" href="https://doc.dvc.org/command-reference/repro">[repro docs]</a> That overlaps with Q4 (where outputs and the API cache live).</p>
+
+<h2>Check yourself</h2>
+<p>Answer from memory first. Feedback is immediate.</p>
+<div class="quiz">
+  <div class="q" data-answer="1">
+    <p>1. In a Makefile where every rule lists <code>config.yaml</code> as an input, you change <code>eval.match_px</code>. What re-runs?</p>
+    <ol class="opts">
+      <li>Only the evaluation stage and its report</li>
+      <li>Every stage that lists the config file</li>
+      <li>Nothing, because no input file has changed</li>
+      <li>Only stages whose output files are missing</li>
+    </ol>
+    <p class="why">Make only sees that <code>config.yaml</code> has a newer timestamp, so every rule that lists it is stale, including the expensive renders and API calls.</p>
+  </div>
+  <div class="q" data-answer="2">
+    <p>2. In Snakemake, <code>match_px</code> reaches the <code>evaluate</code> rule through <code>params:</code>. You change it and run <code>snakemake</code>. What happens?</p>
+    <ol class="opts">
+      <li>Nothing, until you add the force flag</li>
+      <li>Every job in the whole workflow reruns</li>
+      <li>Only the evaluate jobs rerun, by default</li>
+      <li>Snakemake stops and asks you to confirm</li>
+    </ol>
+    <p class="why"><code>params</code> is one of the five default rerun triggers, so only jobs of rules whose params changed (and anything downstream of them) re-run.</p>
+  </div>
+  <div class="q" data-answer="0">
+    <p>3. In DVC, the render stage rewrites <code>map.tif</code> with identical bytes but a new timestamp. The tiles stage depends on it. What happens to tiles?</p>
+    <ol class="opts">
+      <li>Tiles are skipped since the hash matches</li>
+      <li>Tiles rerun because the timestamp is newer</li>
+      <li>Tiles rerun because the lock file changed</li>
+      <li>DVC asks which stages you want rerun</li>
+    </ol>
+    <p class="why">DVC compares content hashes recorded in <code>dvc.lock</code>, not timestamps. Same bytes, same hash, nothing to do.</p>
+  </div>
+  <div class="q" data-answer="3">
+    <p>4. Which runtime does Snakemake's <code>container:</code> directive use to run a job?</p>
+    <ol class="opts">
+      <li>Docker Engine, through the docker compose file</li>
+      <li>Podman, building from the local Dockerfile here</li>
+      <li>No runtime at all; Snakemake ignores containers</li>
+      <li>Apptainer, pulling from a docker:// image URL</li>
+    </ol>
+    <p class="why">The deployment docs run containers via Apptainer (<code>--sdm apptainer</code>), with <code>docker://</code> as the preferred image source. For our Compose stack we'd call <code>docker compose run</code> from the shell command instead.</p>
+  </div>
+  <div class="q" data-answer="1">
+    <p>5. Which of these will none of the four tools cache for you?</p>
+    <ol class="opts">
+      <li>GeoTIFFs written out by the render stage</li>
+      <li>Responses returned by Jev and Opus APIs</li>
+      <li>GeoPackages written out by the diff stage</li>
+      <li>Metrics files written out by evaluate stage</li>
+    </ol>
+    <p class="why">The engines track files that steps declare as outputs. Individual API responses happen inside a step, so the <code>mapdig</code> API cache has to handle them, whichever engine runs the pipeline.</p>
+  </div>
+</div>
+
+<h2>Your call</h2>
+<div class="box">
+<p>In two or three sentences, answer Q1 for this project: which tool, and the one reason that decides it for you. Send it to me in the chat. I'll push back if the reason doesn't hold up, and we'll record the decision in <code>docs/pipeline-spec.md</code>.</p>
+<p>A good answer mentions what happens when one config value changes, and how the parameter grid is expressed.</p>
+</div>
+
+<div class="source">
+<strong>Read next (primary source):</strong> <a href="https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html">Snakemake: Snakefiles and Rules</a>, the sections on wildcards and <code>expand()</code>. For contrast, the short <a href="https://doc.dvc.org/user-guide/pipelines/defining-pipelines">DVC: Defining pipelines</a> page.
+</div>
+
+<p class="note">Anything unclear, or want to see how a step of this repo would look in the other tool? Ask me in the chat. I'm your teacher for this, and follow-up questions are the fastest way to make it stick.</p>
+
+<nav class="lessonnav">
+  <a href="../reference/workflow-engines.html">Reference: workflow engines cheat sheet →</a>
+</nav>
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

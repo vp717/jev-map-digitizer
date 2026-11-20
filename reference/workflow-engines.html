@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workflow engines cheat sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+<p class="kicker">Reference · Workflow engines</p>
+<h1>Workflow engines cheat sheet</h1>
+<p class="lede">Make, Snakemake, DVC and a hand-written runner, compared on what matters for the map-digitizer pipeline. Sources are linked in each cell; versions are those checked on 2026-11-20.</p>
+
+<h2>At a glance</h2>
+<div class="tablewrap"><table>
+<thead><tr><th></th><th>Make</th><th>Snakemake</th><th>DVC</th><th>Own runner</th></tr></thead>
+<tbody>
+<tr><td><b>Stale when</b></td>
+  <td>An input has a newer modification time. Contents are never read (verified, GNU Make 4.4.1).</td>
+  <td>Any default trigger fires: <code>code input mtime params software-env</code> (<code>snakemake --help</code>, 9.27.2).</td>
+  <td>A content hash of a dep, out or listed param changed; hashes kept in <code>dvc.lock</code> (<a href="https://doc.dvc.org/user-guide/pipelines/defining-pipelines">docs</a>).</td>
+  <td>Whatever you implement.</td></tr>
+<tr><td><b>Grid</b></td>
+  <td>Pattern rules on file names.</td>
+  <td>Wildcards in paths, e.g. <code>{method}</code>; values read off requested file names; <code>expand()</code> lists targets (<a href="https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html">docs</a>).</td>
+  <td><code>foreach</code> (list) and <code>matrix</code> (combinations) generate one stage per item (<a href="https://doc.dvc.org/user-guide/project-structure/dvcyaml-files">docs</a>).</td>
+  <td>Loops you write.</td></tr>
+<tr><td><b>Config value changes</b></td>
+  <td>Only visible as "config file is newer".</td>
+  <td>Re-runs rules whose <code>params:</code> changed.</td>
+  <td>Re-runs stages listing that key under <code>params</code>.</td>
+  <td>You track it.</td></tr>
+<tr><td><b>Containers</b></td>
+  <td>None built in.</td>
+  <td><code>container:</code> runs via Apptainer from <code>docker://</code> URLs (<a href="https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html">docs</a>).</td>
+  <td>None built in.</td>
+  <td>You call Docker.</td></tr>
+<tr><td><b>Outputs</b></td>
+  <td>Plain files.</td>
+  <td>Plain files.</td>
+  <td>Cached by DVC; <code>dvc push</code> to remote storage (<a href="https://doc.dvc.org/command-reference/repro">docs</a>).</td>
+  <td>Plain files.</td></tr>
+<tr><td><b>API response cache</b></td>
+  <td colspan="4">None of them. Lives in <code>mapdig</code>'s own content-addressed cache.</td></tr>
+</tbody></table></div>
+
+<h2>Commands</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Task</th><th>Make</th><th>Snakemake</th><th>DVC</th></tr></thead>
+<tbody>
+<tr><td>Show what would run</td><td><code>make -n</code></td><td><code>snakemake -n</code></td><td><code>dvc repro --dry</code></td></tr>
+<tr><td>Run everything that is stale</td><td><code>make</code></td><td><code>snakemake --cores N</code></td><td><code>dvc repro</code></td></tr>
+<tr><td>Force a rebuild</td><td><code>make -B</code></td><td><code>snakemake --forceall</code> / <code>-f TARGET</code></td><td><code>dvc repro -f</code></td></tr>
+<tr><td>Draw the dependency graph</td><td>n/a</td><td><code>snakemake --dag | dot -Tpdf</code></td><td><code>dvc dag</code></td></tr>
+<tr><td>Timestamps only</td><td>default</td><td><code>--rerun-triggers mtime</code></td><td>n/a (hashes)</td></tr>
+</tbody></table></div>
+<p class="note">Not yet verified against primary docs in this workspace: <code>dvc repro -f</code> and <code>dvc dag</code>. Check <code>dvc repro --help</code> / <code>dvc dag --help</code> before relying on them.</p>
+
+<h2>Lessons</h2>
+<ul><li><a href="../lessons/0001-what-reruns-when-you-change-something.html">1 · What re-runs when you change something?</a></li></ul>
+</main>
+</body>
+</html>

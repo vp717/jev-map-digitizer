@@ -1,0 +1,54 @@
+# Local OSM rendering stack: PostGIS database + Mapnik/openstreetmap-carto renderer.
+# Usage:
+#   docker compose up -d db
+#   docker compose run --rm render import.sh        # download extract + load database (once)
+#   docker compose run --rm render render.py --help # render GeoTIFFs into ./out
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: gis
+      POSTGRES_USER: osm
+      POSTGRES_PASSWORD: osm
+    command: >
+      postgres
+      -c shared_buffers=1GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=512MB
+      -c max_wal_size=4GB
+      -c synchronous_commit=off
+      -c jit=off
+      -c max_parallel_workers_per_gather=0
+    shm_size: 1g
+    ports:
+      - "127.0.0.1:5433:5432"   # inspect from QGIS on the host
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osm -d gis"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  render:
+    build: ./docker/render
+    environment:
+      PGHOST: db
+      PGUSER: osm
+      PGPASSWORD: osm
+      PGDATABASE: gis
+      # Parallel query returns rows in varying order, which changes label/icon collision
+      # and makes renders non-deterministic. Must stay off for render-diff ground truth.
+      PGOPTIONS: "-c max_parallel_workers_per_gather=0"
+      EXTRACT_URL: https://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez/freiburg-regbez-latest.osm.pbf
+    volumes:
+      - ./data:/data
+      - ./out:/out
+      - ./scripts:/opt/mapdig/scripts:ro
+      - ./config:/opt/mapdig/config:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

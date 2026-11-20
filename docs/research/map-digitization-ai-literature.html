@@ -1,0 +1,500 @@
+<title>Map Digitization Literature</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column like a map sheet's margin notes, with a sheet-index table and legend-coloured task keys */
+:root {
+  --bg: #f6f7f3;
+  --surface: #ffffff;
+  --ink: #1f2a24;
+  --muted: #5b675f;
+  --rule: #d9ddd3;
+  --accent: #1d5f8a;
+  --pt: #b23a3a;
+  --ar: #3f7d3a;
+  --ln: #a8622a;
+  --tx: #1d5f8a;
+  --gr: #6d4ea0;
+  --e2e: #4d5a63;
+  --warn-bg: #fbf1d9;
+  --warn-fg: #7a5a12;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141a17; --surface: #1b231f; --ink: #e3e8e2; --muted: #9aa69e; --rule: #2f3a34;
+    --accent: #6fb3e0; --pt: #e57b7b; --ar: #86c27e; --ln: #dd9a5e; --tx: #6fb3e0; --gr: #b39ae0; --e2e: #a3b2bc;
+    --warn-bg: #3a3018; --warn-fg: #e8c977; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141a17; --surface: #1b231f; --ink: #e3e8e2; --muted: #9aa69e; --rule: #2f3a34;
+  --accent: #6fb3e0; --pt: #e57b7b; --ar: #86c27e; --ln: #dd9a5e; --tx: #6fb3e0; --gr: #b39ae0; --e2e: #a3b2bc;
+  --warn-bg: #3a3018; --warn-fg: #e8c977; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-block: 40px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 48px; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.1; margin: 0; }
+h1 { font-size: clamp(2.4rem, 6vw, 3.6rem); font-weight: 700; letter-spacing: 0.01em; }
+h2 { font-size: 2rem; font-weight: 600; }
+h3 { font-size: 1.35rem; font-weight: 600; }
+p { margin: 0; }
+.prose { max-width: 68ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.mono { font-family: var(--font-mono); }
+.uv { display: inline-block; font-family: var(--font-mono); font-size: 0.72rem; padding: 0 6px; border-radius: 3px; background: var(--warn-bg); color: var(--warn-fg); white-space: nowrap; vertical-align: 1px; }
+
+header { display: flex; flex-direction: column; gap: 16px; border-bottom: 3px double var(--rule); padding-bottom: 28px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 24px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted); }
+.scope { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--muted); }
+
+section { display: flex; flex-direction: column; gap: 20px; }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.finding { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.finding strong { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; }
+
+.key { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { --c: var(--muted); display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 0.8rem; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.chip .sym { width: 10px; height: 10px; border-radius: 2px; background: var(--c); flex: none; }
+.chip[aria-pressed="true"] { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); }
+.chip .n { color: var(--muted); }
+.tag { --c: var(--muted); font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; color: var(--c); border: 1px solid var(--c); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
+.t-PT { --c: var(--pt); } .t-AR { --c: var(--ar); } .t-LN { --c: var(--ln); } .t-TX { --c: var(--tx); } .t-GR { --c: var(--gr); } .t-E2E { --c: var(--e2e); }
+.pre { font-family: var(--font-mono); font-size: 0.72rem; color: var(--warn-fg); background: var(--warn-bg); border-radius: 3px; padding: 0 5px; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.search { flex: 1 1 260px; max-width: 360px; font: inherit; font-size: 0.95rem; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.count { font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--font-mono); font-size: 0.74rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--bg); position: sticky; top: 0; }
+tr:last-child td { border-bottom: none; }
+td.id { font-family: var(--font-mono); white-space: nowrap; }
+#sumtable { min-width: 820px; }
+#dstable { min-width: 760px; }
+
+.papers { display: flex; flex-direction: column; gap: 12px; }
+details.paper { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; border-left: 4px solid var(--c, var(--rule)); }
+details.paper > summary { list-style: none; cursor: pointer; padding: 14px 18px; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: baseline; }
+details.paper > summary::-webkit-details-marker { display: none; }
+summary .pid { font-family: var(--font-mono); font-size: 0.85rem; color: var(--c); font-weight: 500; }
+summary .ptitle { font-weight: 600; min-width: 0; }
+summary .pby { grid-column: 2; font-size: 0.88rem; color: var(--muted); }
+summary .chev { font-family: var(--font-mono); color: var(--muted); transition: transform .15s; }
+details[open] > summary .chev { transform: rotate(90deg); }
+.pbody { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+.pbody .over { max-width: 72ch; }
+dl { display: grid; grid-template-columns: 150px 1fr; gap: 8px 16px; margin: 0; font-size: 0.93rem; }
+dt { font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.links { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.9rem; }
+.groupnote { color: var(--muted); font-size: 0.95rem; max-width: 72ch; }
+.empty { color: var(--muted); padding: 16px; }
+
+.takeaways { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px 32px; }
+.takeaways > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.takeaways ol, .takeaways ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; }
+.takeaways h3 { display: flex; align-items: center; gap: 8px; }
+.takeaways h3 .sym { width: 12px; height: 12px; border-radius: 2px; background: var(--c); }
+
+footer { color: var(--muted); font-size: 0.88rem; border-top: 1px solid var(--rule); padding-top: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+@media (max-width: 560px) {
+  dl { grid-template-columns: 1fr; gap: 2px; }
+  dd { margin-bottom: 8px; }
+  details.paper > summary { grid-template-columns: auto 1fr; }
+  summary .chev { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Literature review · scanned &amp; rendered maps</span>
+  <h1>Automatic map digitization with AI</h1>
+  <div class="meta"><span>Compiled 2026-11-19</span><span>Window: published on or after 2021-11-19</span><span>35 papers</span></div>
+  <p class="prose scope">Covers scanned or rendered cartographic documents: topographic sheets, historical city and atlas maps, cadastral plans, insurance maps, and geologic, land-use and other thematic maps. Work whose main input is satellite, aerial or drone imagery is excluded. Numbers are copied from each paper and are rarely comparable across papers. <span class="uv">unverified</span> marks a detail that could not be checked against a primary source, usually because the full text was paywalled.</p>
+</header>
+
+<section>
+  <h2>Main findings</h2>
+  <div class="findings">
+    <div class="finding"><strong>OCR is the most mature area</strong><p>The ICDAR MapText 2024 and 2025 competitions released word-polygon datasets and scoring code. Word detection reaches about 90% on Rumsey maps. Recognition and grouping words into place names are much weaker: the best phrase-level score in 2024 was 33 out of 100.</p></div>
+    <div class="finding"><strong>Point symbols are the least developed area</strong><p>Most papers fine-tune YOLO or Mask R-CNN on one map series and use the box centre as the location. YOLSO (predict the centre only) and legend-prompted detection stand out. There is no large, class-labelled benchmark for topographic symbols.</p></div>
+    <div class="finding"><strong>U-Net is still the baseline for areas and lines</strong><p>With plenty of labels, a plain U-Net is hard to beat. With few labels, MapSAM, synthetic "imitation maps", cross-edition pre-training and pseudo-labels help. Clean polygons are still hard: about 51% panoptic quality on the Paris atlas.</p></div>
+    <div class="finding"><strong>Legends drive geologic map extraction</strong><p>The DARPA/USGS AI4CMA competition asked: given the legend swatch, find every matching polygon, line or point. DIGMAPPER is the most complete published system built on it.</p></div>
+    <div class="finding"><strong>Accuracy drops on a new map style</strong><p>The 2024 Rumsey OCR winner fell from 76.1 to 42.3 on handwritten French registers. Released synthetic-map generators let you make training data in your own map's style.</p></div>
+    <div class="finding"><strong>Georeferencing mostly works from text</strong><p>Recognised place names are looked up in a gazetteer (about 300 m error in one study), or printed corner coordinates are read with OCR. Few papers report accuracy in metres.</p></div>
+  </div>
+</section>
+
+<section id="papers">
+  <h2>Papers</h2>
+  <div class="toolbar">
+    <div class="key" id="chips" role="group" aria-label="Filter by task"></div>
+    <input class="search" id="q" type="search" placeholder="Search titles, data, methods…" aria-label="Search papers">
+  </div>
+  <div class="count" id="count"></div>
+  <div class="tablewrap">
+    <table id="sumtable">
+      <thead><tr><th>#</th><th>Paper</th><th>Task</th><th>Training data</th><th>Eval data</th><th>Code / data</th></tr></thead>
+      <tbody id="sumbody"></tbody>
+    </table>
+  </div>
+  <p class="groupnote">Select a row, or open a card below, for the plain-language overview, data, results and how each paper records locations.</p>
+  <div class="papers" id="cards"></div>
+</section>
+
+<section id="ocr-notes">
+  <h2>Why maps are hard for OCR</h2>
+  <p class="prose">Map text is often curved or rotated, spaced very widely with symbols in between, printed in old or engraved fonts, or handwritten. It sits on busy backgrounds and changes size and style to show the feature type. One place name can be split across several words that are far apart. So the field splits into three sub-tasks: <b>detection</b> (a polygon around each word), <b>recognition</b> (the text string) and <b>linking</b> (grouping and ordering words into place names).</p>
+  <p class="prose groupnote">Background before the window: Strabo (USC, about 2014–2018) was an earlier map-text toolkit, since replaced by deep text spotters such as mapKurator. The original SynthMap paper (GeoAI '21) falls just before the cutoff; its successor SynthMap+ is covered in T3.</p>
+</section>
+
+<section id="datasets">
+  <h2>Datasets and benchmarks</h2>
+  <div class="tablewrap">
+    <table id="dstable">
+      <thead><tr><th>Dataset</th><th>Contents</th><th>Size</th><th>License</th></tr></thead>
+      <tbody id="dsbody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="takeaways">
+  <h2>Practical takeaways for a map digitizer</h2>
+  <div class="takeaways">
+    <div class="t-PT">
+      <h3><span class="sym"></span>Point-symbol localization</h3>
+      <ol>
+        <li><b>Use a standard detector, but predict centres.</b> Fine-tune YOLOv8/v10 on 512–1024 px tiles. Symbols have a fixed size per series, so YOLSO's centre + class output fits well. You want a keypoint, not a box.</li>
+        <li><b>Stamp symbols to make training data.</b> Paste legend glyphs onto real backgrounds with the real symbols masked out. This improved point F1 in DIGMAPPER.</li>
+        <li><b>For many styles, use the legend as the query.</b> One model can then handle unseen symbols. Expect weaker results on rare ones.</li>
+        <li><b>Label smartly.</b> Click rough centres, then snap with template matching, as YOLSO did for 22,882 points.</li>
+        <li><b>Get coordinates from georeferenced sheets.</b> Keep the tile offset and apply the sheet's transform to the pixel centre.</li>
+        <li><b>Benchmarks:</b> CaSiDD for generic signs; AI4CMA point features, scored by distance-based F1.</li>
+      </ol>
+    </div>
+    <div class="t-AR">
+      <h3><span class="sym"></span>Areas and lines</h3>
+      <ol>
+        <li><b>Baseline: a U-Net on tiles.</b> It beat MapSAM with full data and beat transformers on the Paris benchmark.</li>
+        <li><b>With few labels:</b> MapSAM-style SAM fine-tuning, contrastive pre-training across editions, pseudo-labels from neighbouring editions, or synthetic imitation maps.</li>
+        <li><b>For coarse national coverage,</b> patch classification (MapReader) may be enough.</li>
+        <li><b>For clean polygons,</b> plan a vectorization stage (edges + watershed) and score with panoptic quality, starting from the soduco benchmark code.</li>
+        <li><b>For lines:</b> segment, skeletonize, vectorize, then classify by symbol style. If a modern vector network exists, check each modern road against the old map.</li>
+      </ol>
+    </div>
+    <div class="t-TX">
+      <h3><span class="sym"></span>OCR / text spotting</h3>
+      <ol>
+        <li><b>Start from a map spotter, not generic OCR:</b> mapKurator + PALETTE (tiling, merging, georeferenced GeoJSON, OSM linking), or the MapText-winning DNTextSpotter pipeline with released weights.</li>
+        <li><b>Fine-tune on your map style,</b> using SynthMap+ or the French synthetic generator for style-matched data.</li>
+        <li><b>Evaluate with the MapText protocol and code</b> on the Rumsey test set. The 2025 metrics differ from 2024.</li>
+        <li><b>Treat linking as its own step:</b> LIGHT, or a simple MST heuristic.</li>
+        <li><b>Post-correct with a gazetteer;</b> the same names can drive georeferencing.</li>
+        <li><b>Licence check:</b> Rumsey annotations are non-commercial (CC BY-NC-SA 3.0). SynthMap+ (CC BY 4.0) and IGN 2025 (CC BY-SA 4.0) are looser.</li>
+      </ol>
+    </div>
+    <div class="t-GR">
+      <h3><span class="sym"></span>Georeferencing and legends</h3>
+      <ul>
+        <li>If sheets have printed corner coordinates, read them with OCR or an LLM.</li>
+        <li>Otherwise geocode recognised place names, or match against already-georeferenced maps.</li>
+        <li>For legend-driven pipelines, LayoutLMv3 + few-shot GPT-4o reached 88% F1 on legend items.</li>
+      </ul>
+      <h3 style="margin-top:8px"><span class="sym" style="background:var(--warn-fg)"></span>Gaps</h3>
+      <ul>
+        <li>No large, multi-series, class-labelled benchmark for topographic glyphs (churches, wells, mines, triangulation points). CaSiDD is closest and mostly class-agnostic.</li>
+        <li>Few papers report results in metres; most report pixel IoU or F1.</li>
+        <li>Many promising 2025–26 works are still preprints.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>Source: <span class="mono">docs/research/map-digitization-ai-literature.md</span>, which carries a source link for every claim.</span>
+  <span>Excluded: BCE-Net (mainly imagery). ICDAR 2021 MapSeg, Luft et al. 2021 and SynthMap (GeoAI '21) predate the window.</span>
+</footer>
+</div>
+
+<script>
+const TASKS = {
+  PT: "Point / glyph", AR: "Area / polygon", LN: "Line", TX: "OCR / text", GR: "Georeferencing", E2E: "End-to-end"
+};
+const P = [
+{id:"P1",t:"PT",title:"Automatic vectorization of point symbols on archive maps using deep convolutional neural network",by:"Vassányi & Gede · 2021 · Proc. ICA 4:109",link:"https://doi.org/10.5194/ica-proc-4-109-2021",
+ over:"Trains an instance-segmentation network to find small symbols on old Austro-Hungarian military survey sheets, then turns each detection into a vector point. One of the few papers that targets point symbols directly.",
+ train:"Third Military Survey sheets, 4 point-symbol classes. Mask R-CNN (ResNet-101 + FPN) in Google Colab. Annotation counts (unverified).",
+ ev:"A complete held-out test sheet.",res:"About 90% accuracy; 94% of symbols found for some classes.",code:"(unverified)",
+ loc:"Instance masks and boxes in pixels, turned into vector points. Sheets georeferenced separately (unverified).",
+ strain:"Austro-Hungarian 3rd Military Survey, 4 classes",sev:"Held-out complete sheet"},
+{id:"P2",t:"PT",title:"Leveraging Deep Convolutional Neural Network for Point Symbol Recognition in Scanned Topographic Maps",by:"Huang et al. · 2023 · ISPRS IJGI 12(3):128",link:"https://doi.org/10.3390/ijgi12030128",
+ over:"Adapts YOLOv4 to find and classify point symbols on large-scale Chinese topographic maps. ASPP adds multi-scale context, k-means++ fits anchor sizes, and two map-specific augmentations handle rotation and differences between scanned and rendered sources.",
+ train:"1,909 scanned images plus 2,505 images rendered from vector maps (partly synthetic), Chinese 1:500–1:2000 symbol specification.",
+ ev:"Held-out images from the same sources; mAP and IoU, including cross-domain tests.",res:"ASPP and the augmentations improved mAP, IoU and robustness. Exact numbers (unverified).",code:"(unverified)",
+ loc:"Bounding boxes in pixel coordinates.",strain:"1,909 scanned + 2,505 rendered Chinese topo images",sev:"Held-out; mAP, IoU"},
+{id:"P3",t:"PT",title:"You Only Look for a Symbol Once (YOLSO): An Object Detector for Symbols and Regions in Documents",by:"Smith & Pillatt · 2023 · ICDAR 2023",link:"https://doi.org/10.1007/978-3-031-41734-4_14",extra:[["Accepted version","https://eprints.whiterose.ac.uk/id/eprint/198859/"]],
+ over:"Map symbols are drawn at a fixed size, so YOLSO predicts only each symbol's centre and class on a grid, not a box. It is fully convolutional with no padding, so it runs on tiles of any size, and it also gives a coarse segmentation of regions marked by repeated symbols such as woodland.",
+ train:"Ordnance Survey 1st-edition 1:2500 (1890–93), 135 tiles of 1 km² from Yorkshire. 22,882 tree points (broadleaf/conifer) and 782 woodland polygons in 4 classes. Points clicked by hand and snapped with template matching. Not synthetic.",
+ ev:"Held-out regions; correct class and IoU > 0.5.",res:"Point mAP@0.5: YOLSO 97.9%, Faster R-CNN 70.2%, YOLOv3 43.6%. Region mAP 94.6%.",code:"Abstract says public; repository URL (unverified).",
+ loc:"Symbol centres as keypoints. Tiles are on the British National Grid, so pixels convert directly to coordinates.",
+ strain:"135 OS 1:2500 tiles; 22,882 tree points, 782 polygons",sev:"Held-out tiles; point mAP@0.5",scode:"Stated public (URL unverified)"},
+{id:"P4",t:"PT",t2:"AR",title:"Accurate Feature Extraction from Historical Geologic Maps Using Open-Set Segmentation and Detection",by:"Saxton et al. · 2024 · Geosciences 14(11):305",link:"https://doi.org/10.3390/geosciences14110305",
+ over:"Each geologic map has its own legend, so the model takes the legend swatch as a prompt and finds every matching polygon or point symbol (one-shot, open-set). A human-in-the-loop tool lets geologists fix results.",
+ train:"AI4CMA geologic maps annotated by USGS and DARPA. Exact counts (unverified).",
+ ev:"AI4CMA maps; median F1 (the challenge metric).",res:"Median F1 0.91 for polygons and 0.73 for points where training data was abundant. Rare point symbols remain weak.",code:"(unverified)",
+ loc:"Pixel masks for polygons, detections for points, in pixel space.",strain:"AI4CMA geologic maps",sev:"AI4CMA maps; median F1"},
+{id:"P5",t:"PT",title:"Symbol detection on historical maps to explore the regional tea industry of early 20th-century Taiwan",by:"Pai et al. · 2025 · Digital Scholarship in the Humanities",link:"https://doi.org/10.1093/llc/fqaf099",
+ over:"Trains a YOLO detector to pull land-use symbols, especially tea plantations, from Taiwanese maps of the 1900s and 1920s, then uses them in GIS to track how the tea industry changed. An example of symbol detection used as a history tool.",
+ train:"Historical maps of the Tamsui area (1900s, 1920s). Sizes (unverified). Reportedly YOLOv8n/m, with accuracy dropping where contour lines overlap symbols (unverified).",
+ ev:"(unverified)",res:"(unverified)",code:"Open-access article (CC BY-NC). Code (unverified).",
+ loc:"Bounding boxes turned into GIS points on georeferenced maps (unverified).",strain:"Early-20th-c. Taiwanese maps, land-use symbols",sev:"(unverified)"},
+{id:"P6",t:"PT",pre:1,title:"Automated Detection and Encoding of Cartographic Signs in Historical Maps (CaSiDD)",by:"Petitpierre · 2026 · arXiv:2610.13224",link:"https://arxiv.org/abs/2610.13224",
+ over:"A two-step, style-agnostic approach: detect any cartographic sign with YOLOv10-X (no classes), then embed each sign so similar signs cluster across very different map styles. Releases CaSiDD, a benchmark for generic sign detection.",
+ train:"CaSiDD: 18,750 sign labels on 796 patches (768–1000 px) from 20+ library portals in 5 countries. Manual, class-agnostic labels, with 24 frequent categories where possible.",
+ ev:"CaSiDD; precision and recall at IoU ≥ 0.3 and ≥ 0.5.",res:"Precision 81.1% / recall 41.5% at IoU 0.3; 75.7% / 38.9% at IoU 0.5. 24-class AP50 44.6%. Low recall shows how hard generic sign detection is.",
+ code:"Dataset on Zenodo (doi:10.5281/zenodo.16278380). License and detector code (unverified).",codeLink:"https://doi.org/10.5281/zenodo.16278380",
+ loc:"Bounding boxes in pixel space.",strain:"CaSiDD: 796 patches, 18,750 signs",sev:"CaSiDD; P/R at IoU 0.3/0.5",scode:"Dataset yes (Zenodo)"},
+
+{id:"A1",t:"AR",title:"Exploiting Polygon Metadata to Understand Raster Maps — Accurate Polygonal Feature Extraction",by:"Lin F. et al. · 2023 · ACM SIGSPATIAL",link:"https://doi.org/10.1145/3589132.3625659",
+ over:"To find every area on a geologic map belonging to a rock unit, the model reads the map together with the legend's map-key swatch, encoding both as bitmaps for a CNN. One model can then handle legends it has never seen.",
+ train:"USGS geologic maps (AI4CMA data). Exact dataset and size (unverified).",ev:"USGS geologic maps; median F1.",res:"Median F1 0.809, 4.52% above the prior state of the art.",code:"(unverified)",
+ loc:"Pixel masks per legend item.",strain:"USGS geologic maps + legend",sev:"USGS geologic maps; median F1"},
+{id:"A2",t:"AR",t2:"LN",title:"Uncertainty estimation and spatial pyramid pooling for extracting hydrological features from scanned historical topographic maps",by:"Wu, Heitzler & Hurni · 2022 · GIScience & Remote Sensing 59(1)",link:"https://doi.org/10.1080/15481603.2021.2023840",
+ over:"Segments streams and lakes on old topographic maps with a U-Net plus ASPP. A Bayesian version also outputs a per-pixel confidence map, which highlights blurry edges, scan noise and unusual designs.",
+ train:"Scanned historical topographic maps. Series and size (unverified); the authors' related work uses Swiss Siegfried maps.",ev:"Dice coefficient.",res:"Average Dice 0.827, about 26% better than plain U-Net.",code:"(unverified)",
+ loc:"Pixel masks plus pixel uncertainty maps.",strain:"Historical topo maps (series unverified)",sev:"Dice"},
+{id:"A3",t:"AR",title:"Domain adaptation in segmenting historical maps: a weakly supervised approach through spatial co-occurrence",by:"Wu, Schindler, Heitzler & Hurni · 2023 · ISPRS J. Photogramm. Remote Sens. 197",link:"https://doi.org/10.1016/j.isprsjprs.2023.01.021",
+ over:"A model trained on one map series often fails on another. Editions of the same place share many unchanged objects, so labels from one edition become rough labels for the other, letting the model adapt without new hand labels.",
+ train:"Swiss Siegfried maps and old Swiss national maps (KOMB, KREL). Sizes (unverified).",ev:"Cross-series segmentation.",res:"\"Substantial benefit\" over unsupervised domain adaptation. Numbers (unverified).",
+ code:"github.com/sian-wusidi/spatialcooccurrence",codeLink:"https://github.com/sian-wusidi/spatialcooccurrence",
+ loc:"Pixel masks on georeferenced sheets.",strain:"Siegfried + old Swiss national maps",sev:"Cross-series segmentation",scode:"Yes (GitHub)"},
+{id:"A4",t:"AR",title:"Identifying wetland areas in historical maps using deep convolutional neural networks",by:"Ståhl & Weimann · 2022 · Ecological Informatics 68",link:"https://doi.org/10.1016/j.ecoinf.2022.101557",
+ over:"A CNN marks wetlands on the Swedish Generalstabskartan military map, then runs across southern Sweden to produce a historical wetland GIS layer.",
+ train:"Hand-labelled historical wetlands in Jönköping county.",ev:"10-fold cross-validation; F1.",res:"F1 0.886.",code:"Output GIS layer released. Code (unverified).",
+ loc:"Pixel classes on georeferenced sheets, exported as a GIS layer.",strain:"Generalstabskartan, Jönköping, hand-labelled",sev:"10-fold CV; F1",scode:"GIS layer released"},
+{id:"A5",t:"AR",title:"Building-level 3D models of historic urban neighbourhoods from Sanborn Fire Insurance maps",by:"Lin Yue et al. · 2023 · PLOS ONE 18(6)",link:"https://doi.org/10.1371/journal.pone.0286340",
+ over:"On colour-coded US fire-insurance maps, a pixel classifier finds building footprints and their material from colour. Two Mask R-CNN models read small handwritten labels for use and storey count. Results become 3D models of neighbourhoods lost to highway building.",
+ train:"13 Sanborn sheets (Columbus, Ohio, 1961). Labelled pixels train an SVM; hand-labelled boxes train Mask R-CNN (e.g. over 11,000 \"1-storey\" numerals).",
+ ev:"Precision, recall, F1 on held-out pixels and labels.",res:"F1 about 0.9 for footprints and materials; above 0.7 for use and storeys.",
+ code:"Code and data on figshare",codeLink:"https://doi.org/10.6084/m9.figshare.22637848",
+ loc:"Sheets georeferenced first via an address geocoder, so outputs are georeferenced polygons.",strain:"13 Sanborn sheets, Columbus 1961",sev:"Pixel/object F1",scode:"Yes (figshare)"},
+{id:"A6",t:"AR",t2:"LN",title:"MapSAM: adapting Segment Anything Model for automated feature detection in historical maps",by:"Xia et al. · 2025 · GIScience & Remote Sensing",link:"https://doi.org/10.1080/15481603.2025.2494883",extra:[["arXiv","https://arxiv.org/abs/2411.06971"]],
+ over:"Adapts Meta's Segment Anything Model to historical maps with light fine-tuning (DoRA) and automatic prompts, aiming for decent segmentation from very few labelled tiles.",
+ train:"Swiss Siegfried, 224×224 tiles, hand-labelled masks. Railways: 5,872 / 839 / 1,679 train/val/test tiles, with 10%, 1% and 10-shot subsets. Vineyards: 613 / 87 / 177.",
+ ev:"IoU and F1.",res:"Railway, 10 tiles: MapSAM 78.5 vs U-Net 61.4 IoU. Full data: U-Net wins (91.9 vs 89.5). Vineyard 10-shot: 60.0 vs 60.2. Foundation models help most when labels are very scarce.",
+ code:"github.com/Xue-Xia/MapSAM (announced)",codeLink:"https://github.com/Xue-Xia/MapSAM",
+ loc:"Pixel masks.",strain:"Siegfried: railway 5,872 tiles, vineyard 613",sev:"IoU, F1, few-shot",scode:"Yes (announced)"},
+{id:"A7",t:"AR",pre:1,title:"Semantic Segmentation for Sequential Historical Maps by Learning from Only One Map",by:"Yuan, Thiemann & Sester · 2025 · arXiv:2501.01845",link:"https://arxiv.org/abs/2501.01845",
+ over:"Label one map edition by hand, train a U-Net, then use its predictions as pseudo-labels for the next-older and next-newer editions, step by step (\"age-tracing\"), filtering out uncertain pixels.",
+ train:"New \"Hameln\" dataset: German 1:25k sheets 3821, 3822, 3921, 3922 (1897–2017). Classes: woodland, grassland, settlement, flowing and standing water, unknown. Rectified to UTM at 1 m/px.",
+ ev:"Sheet 3922; mIoU and overall accuracy.",res:"Best mIoU 77.3% (about 20 points over baseline); average OA 97%.",code:"(unverified)",
+ loc:"Pixel masks on georeferenced UTM rasters.",strain:"Hameln, German 1:25k topo 1897–2017",sev:"mIoU, OA"},
+{id:"A8",t:"AR",pre:1,title:"Leveraging LLMs and attention-mechanism for automatic annotation of historical maps",by:"Yuan & Sester · 2025 · arXiv:2504.11050",link:"https://arxiv.org/abs/2504.11050",
+ over:"A large language model gives coarse labels to low-resolution patches (\"this patch has woods\"); an attention mechanism sharpens them into finer masks, so no fine hand labels are needed.",
+ train:"Historical map patches with LLM-generated labels. Sizes (unverified).",ev:"IoU and precision for wood and settlement.",res:"Recall above 90%. IoU 84.2% (wood), 72.0% (settlement).",code:"(unverified)",
+ loc:"Pixel masks.",strain:"LLM coarse labels, no fine manual labels",sev:"IoU/precision"},
+{id:"A9",t:"AR",pre:1,title:"Mapping Historic Urban Footprints in France: Balancing Quality, Scalability and AI Techniques",by:"Rabehi, Le Texier & Lemoy · 2025 · arXiv:2510.02097",link:"https://arxiv.org/abs/2510.02097",
+ over:"A two-pass U-Net maps urban areas across metropolitan France from IGN Scan Histo maps (1925–1950). The first pass finds confusing elements such as text and roads; the second uses that to cut false positives.",
+ train:"Initial and refined training sets (sizes unverified).",ev:"941 high-resolution tiles across France.",res:"Overall accuracy of the final mosaic 73%.",code:"Code, training data and national raster stated released. Links (unverified).",
+ loc:"Georeferenced raster mosaic.",strain:"IGN Scan Histo (1925–1950)",sev:"941 tiles; OA 73%",scode:"Stated released"},
+{id:"A10",t:"AR",title:"MapReader: A Computer Vision Pipeline for the Semantic Exploration of Maps at Scale",by:"Hosseini et al. · 2022 · ACM GeoHumanities '22",link:"https://doi.org/10.1145/3557919.3565812",extra:[["JOSS","https://doi.org/10.21105/joss.06434"]],
+ over:"Instead of exact outlines, MapReader cuts each sheet into ~100 m patches and classifies each one (e.g. railspace, building). Cheap to label and scales to whole national series. Later versions add text spotting.",
+ train:"About 16K 19th-century OS sheets (~30.5M patches). 62,020 hand-labelled patches in 4 classes.",ev:"12,404 val and 12,404 test patches.",res:"ResNeSt-101e test F1-macro 97.17%, F1-micro 99.55%.",
+ code:"github.com/maps-as-data/MapReader",codeLink:"https://github.com/maps-as-data/MapReader",
+ loc:"Label per patch; patch centres converted to lat/lon from sheet corners.",strain:"~16K OS sheets; 62,020 labelled patches",sev:"12,404 test patches; F1",scode:"Yes (GitHub, JOSS)"},
+
+{id:"L1",t:"LN",title:"Towards the automated large-scale reconstruction of past road networks from historical maps",by:"Uhl, Leyk, Chiang & Knoblock · 2022 · CEUS 94",link:"https://doi.org/10.1016/j.compenvurbsys.2022.101794",
+ over:"Starts from today's road network and asks, segment by segment, whether the road was already on the old map, using colour information from the georeferenced old map with image processing and clustering.",
+ train:"Over 300,000 modern road segments (50,000+ km) and 42 USGS historical topo sheets (1890–1950) in three US areas. Mostly unsupervised.",ev:"Other historical datasets and manual reference data; F1.",res:"F1 up to 0.95.",code:"(unverified)",
+ loc:"Georeferenced vector segments, reusing modern geometry.",strain:"42 USGS topo sheets + modern roads",sev:"Manual reference; F1"},
+{id:"L2",t:"LN",title:"Road extraction from historical maps by automatically generating training data with symbol reconstruction",by:"Jiao, Heitzler & Hurni · 2022 · JAG 113",link:"https://doi.org/10.1016/j.jag.2022.102980",
+ over:"Re-renders vector road data in the Siegfried map's symbol style to create \"imitation maps\" with free labels. Models trained on these alone work reasonably; mixing in a few real labels can beat real labels alone.",
+ train:"Swiss Siegfried map; four scenarios with real, synthetic and mixed data. Sizes (unverified).",ev:"Siegfried test areas.",res:"See overview. Numbers (unverified).",code:"(unverified)",
+ loc:"Pixel masks on georeferenced sheets.",strain:"Siegfried real + synthetic imitation maps",sev:"Siegfried test areas"},
+{id:"L3",t:"LN",title:"Road vectorization and classification from historical maps based on deep learning and symbol painting",by:"Jiao, Heitzler & Hurni · 2024 · CEUS 108",link:"https://doi.org/10.1016/j.compenvurbsys.2023.102060",
+ over:"Deep learning finds road pixels, which become vector lines. Each line is classified by \"painting\" every candidate road symbol over it and checking which matches best, so no class labels are needed.",
+ train:"Siegfried map. Details (unverified).",ev:"(unverified)",res:"(unverified)",code:"(unverified)",
+ loc:"Vector polylines with class attributes.",strain:"Siegfried map",sev:"(unverified)"},
+{id:"L4",t:"LN",title:"Contrastive Pretraining for Railway Detection: Unveiling Historical Maps with Transformers",by:"Xia, Jiao & Hurni · 2023 · GeoAI '23",link:"https://doi.org/10.1145/3615886.3627738",
+ over:"The same Swiss location appears on the Siegfried map and the later Old National Map. Pairs are treated as the same scene to pre-train a transformer without labels, then it is fine-tuned to find railways.",
+ train:"Siegfried and Old National Map tile pairs (self-supervised) plus a small labelled set.",ev:"Railway segmentation.",res:"Matches full supervision with only 2.5% of the labels.",code:"(unverified)",
+ loc:"Pixel masks.",strain:"Siegfried + Old National Map pairs",sev:"Railway segmentation"},
+{id:"L5",t:"LN",pre:1,title:"Probabilistic road classification in historical maps using synthetic data and deep learning",by:"Mühlematter et al. · 2024 · arXiv:2410.02250",link:"https://arxiv.org/abs/2410.02250",
+ over:"Extracts road lines, then classifies each road with an ensemble trained on roads re-painted in each class's symbol style. Outputs class probabilities instead of hard labels.",
+ train:"Synthetic re-painted Siegfried roads; no manual class labels.",ev:"Two Siegfried sheets; completeness and correctness.",res:"Most common road class: completeness above 94%, correctness above 92%.",code:"(unverified)",
+ loc:"Vector roads with class probabilities.",strain:"Synthetic re-painted Siegfried roads",sev:"2 Siegfried sheets"},
+{id:"L6",t:"LN",title:"Deep learning-based extraction of Kenya's historical road network from topographic maps",by:"Kramm et al. · 2025 · Scientific Data 12:1149",link:"https://doi.org/10.1038/s41597-025-05442-6",
+ over:"A national-scale workflow: 533 Kenyan sheets scanned and hand-georeferenced, one segmentation model per road symbol type (ArcGIS Pro Multi-Task Road Extractor), merged into one road dataset.",
+ train:"533 maps at 1:50k and 1:100k (1950s–80s), 20 road symbols in 3 groups. Hand-digitized lines buffered by 20 m, 512×512 chips. U-Net with ResNet34.",
+ ev:"Manually digitized roads on 7 sheets; OA, P, R, F1, IoU and positional deviation.",res:"Average F1 0.84; over 56,000 km of roads.",
+ code:"Data CC BY 4.0; scripts need commercial ArcGIS Pro",codeLink:"https://doi.org/10.5880/TRR228DB.37",
+ loc:"Georeferenced vector lines (UTM / Arc 1960).",strain:"533 Kenyan topo sheets, 20 road symbols",sev:"7 sheets; F1 0.84",scode:"Data + scripts (CC BY 4.0)"},
+
+{id:"T1",t:"TX",title:"ICDAR 2024 Competition on Historical Map Text Detection, Recognition, and Linking (MapText 2024)",by:"Li Z. et al. · 2024 · ICDAR 2024",link:"https://doi.org/10.1007/978-3-031-70552-6_22",extra:[["Report PDF","https://weinman.cs.grinnell.edu/pubs/li24icdar.pdf"],["Eval code","https://github.com/icdar-maptext/evaluation"],["Winning pipeline","https://github.com/yyyyyxie/MapTextPipeline"]],
+ over:"The first shared benchmark for reading text on historical maps. Four tasks: word detection, phrase detection (linking), word detection + recognition, and phrase detection + recognition, on an English set and a French handwritten cadastral set. 44 submissions from 8 teams.",
+ train:"Rumsey: 936 maps from the David Rumsey collection (1623–2012), cut into 2000×2000 tiles: 200 train (34,518 words), 40 val, 700 test. French Land Registers: 19th-c. cadastral plans from about 50 towns, mostly handwritten, 145 sheets, 17,000+ words, split by town. Word polygons, transcriptions, groups, illegible flags.",
+ ev:"IoU > 0.5 matching. PDQ (tightness × F), PWQ (exact transcription needed), PCQ (character-level).",
+ res:"Rumsey word detection: Bilibili pipeline (DeepSolo + ViTAEv2-S, public scene-text data only) PDQ 76.1, F 92.0. Best word recognition PWQ 60.1. Phrase-level PCQ only 33.1. French best PWQ 40.1. TESTR baseline PDQ 55.1.",
+ code:"Rumsey train/val on Zenodo (CC BY-NC-SA 3.0); eval code GPL-3.0",codeLink:"https://zenodo.org/records/10608901",
+ loc:"Word polygons in tile pixel coordinates (not georeferenced).",strain:"Rumsey 200 train tiles + French registers",sev:"Rumsey 700 test tiles, French; PDQ/PWQ/PCQ",scode:"Yes (Zenodo, GitHub)"},
+{id:"T2",t:"TX",title:"ICDAR 2025 Competition on Historical Map Text Detection, Recognition, and Linking (MapText 2025)",by:"Lin Y. et al. · 2025 · ICDAR 2025",link:"https://doi.org/10.1007/978-3-032-04630-7_33",extra:[["Report PDF","https://weinman.cs.grinnell.edu/~weinman/pubs/lin25icdar.pdf"],["All resources","https://zenodo.org/communities/icdar-maptext"]],
+ over:"Keeps Rumsey and adds more than twice as many French tiles, a new Taiwanese topographic set in traditional Chinese (horizontal and vertical text), and synthetic training data for each set. In 2024 the linking winner predicted no links at all, so 2025 scores link precision and recall explicitly.",
+ train:"Rumsey (unchanged). French: 228 sheets + 18,073 synthetic tiles. Taiwanese: 311 of ~1,205 sheets (train 1904/05/1921, val 1924, test 1950s) + Chinese synthetic set. SynthMap+ English: 35,000 tiles (CC BY 4.0).",
+ ev:"Harmonic mean of detection P, R, tightness, character accuracy and link P/R, by task.",
+ res:"Rumsey word detection H-mean 90.2 (DNTextSpotter pipeline). Phrase detection 78.4, a tie between EPFL's Self-Sequencer and NAVER/LINE's CREPE + Bézier. Fine-tuned TESTR a strong detector, especially on French.",
+ code:"Zenodo community; IGN 2025 CC BY-SA 4.0; French generator LGPL-3.0",codeLink:"https://zenodo.org/communities/icdar-maptext",
+ loc:"Word polygons in pixel space, grouped into ordered phrases.",strain:"+ French, Taiwanese, synthetic sets",sev:"3 datasets; H-mean incl. link P/R",scode:"Yes (Zenodo, GitHub)"},
+{id:"T3",t:"TX",title:"Hyper-Local Deformable Transformers for Text Spotting on Historical Maps (PALETTE) + SynthMap+",by:"Lin & Chiang · 2024 · KDD 2024",link:"https://doi.org/10.1145/3637528.3671589",extra:[["arXiv","https://arxiv.org/abs/2506.15010"],["SynthMap+","https://zenodo.org/records/14480731"]],
+ over:"An end-to-end text spotter on a deformable DETR that samples features very close to each text boundary point and character, which helps with long, steeply rotated labels. Trained mainly on SynthMap+: synthetic maps placing real OpenStreetMap names along real features with QGIS label placement, on Rumsey-style backgrounds.",
+ train:"SynthMap+ (73,657 images, 1,102,940 text annotations), SynthText, ICDAR15, Total-Text, MLT.",
+ ev:"Grinnell-UMass-31 (500 tiles, 15,143 instances) and new Rumsey-309 (309 tiles, 13,145 labels). Detection P/R/F and end-to-end F1.",
+ res:"End-to-end F1, no lexicon, Rumsey-309: PALETTE 69.82 vs TESTR 65.99 vs DeepSolo 60.11. After fine-tuning on Rumsey-309: 75.87. Deployed on 60,000+ Rumsey maps, 100M+ labels.",
+ code:"mapkurator-palette-doc",codeLink:"https://github.com/kartta-foundation/mapkurator-palette-doc",
+ loc:"16-point text-boundary polygons in pixels; georeferenced later by mapKurator.",strain:"SynthMap+ (73,657 synthetic) + scene text",sev:"Rumsey-309, Grinnell-UMass-31; E2E F1",scode:"Yes"},
+{id:"T4",t:"TX",t2:"E2E",title:"The mapKurator System: A Complete Pipeline for Extracting and Linking Text from Historical Maps",by:"Kim et al. · 2023 · ACM SIGSPATIAL (demo)",link:"https://arxiv.org/abs/2306.17059",extra:[["Docs","https://knowledge-computing.github.io/mapkurator-doc/"]],
+ over:"A full working pipeline: tile big scans, spot text in each tile, merge results back, fix OCR errors against OpenStreetMap names, convert pixels to geographic coordinates via the map's control points (GDAL), and link each label to an OSM entity.",
+ train:"Synthetic scene text, a synthetic map dataset, and human-labelled real maps (sizes not stated).",ev:"No new benchmark; deployment on 60,000+ Rumsey maps.",res:"100M+ labels produced.",
+ code:"github.com/knowledge-computing/mapkurator-system",codeLink:"https://github.com/knowledge-computing/mapkurator-system",
+ loc:"Georeferenced GeoJSON polygons with text, score, corrected text and OSM ID.",strain:"Synthetic maps + scene text + human labels",sev:"Deployment on 60K+ Rumsey maps",scode:"Yes"},
+{id:"T5",t:"TX",title:"LIGHT: Multi-Modal Text Linking on Historical Maps",by:"Lin Y. et al. · 2025 · ICDAR 2025",link:"https://doi.org/10.1007/978-3-032-04617-8_4",extra:[["arXiv","https://arxiv.org/abs/2506.22589"]],
+ over:"Given words from a spotter, predicts each word's \"next word\" in the same place name using the text, the image, and each word polygon's shape and position. Built on LayoutLMv3 with a new geometry encoder.",
+ train:"MapText Rumsey (200 train + 40 val). Pre-training on 397,385 auto-labelled tiles from 41,279 Rumsey maps.",ev:"700 Rumsey test tiles; link P/R/F.",
+ res:"Link F 83.7 on ground-truth words, vs 77.8 LayoutLMv3 and 44.3 heuristic MST. Depends on an external spotter.",
+ code:"multimodal-text-linking",codeLink:"https://github.com/knowledge-computing/multimodal-text-linking",
+ loc:"Ordered word polygons (pixel space).",strain:"MapText Rumsey + 397,385 auto-labelled tiles",sev:"MapText Rumsey test; link F1",scode:"Yes"},
+{id:"T6",t:"TX",title:"Automatic Search of Multiword Place Names on Historical Maps",by:"Olson, Kim & Chiang · 2024 · GeoSearch '24",link:"https://doi.org/10.1145/3681769.3698577",
+ over:"A training-free way to search for names like \"New York City\" when the spotter found only single words: link nearby words of similar height, angle and capitalization with a minimum spanning tree, then search the trees.",
+ train:"None (MST heuristic).",ev:"MapText 2024 data (940 tiles), 5-fold CV.",res:"Link precision 26.15%, recall 82.61%. Retrieval over ~60,000 maps: on average 80 maps per query spanning ~205 years.",code:"(unverified)",
+ loc:"Groups of word polygons.",strain:"No training (MST heuristic)",sev:"MapText 2024; link P/R"},
+{id:"T7",t:"TX",pre:1,title:"Recognizing and Sequencing Multi-word Texts in Maps Using an Attentive Pointer",by:"Zou et al. · 2025 · Research Square",link:"https://doi.org/10.21203/rs.3.rs-6330456/v1",
+ over:"Spots words, then a pointer network links and orders them into full names, skipping distractor words using position and Bézier-curve direction. This \"Self-Sequencer\" tied for first in MapText 2025 phrase detection.",
+ train:"MapText, mapKurator human labels, SynthMap, and the Paris & Jerusalem Maps Text Dataset (82 samples).",ev:"1890s Ordnance Survey of London.",res:"285,846 text sequences retrieved; geocoded names used to realign city maps.",code:"CC BY preprint. Code (unverified).",
+ loc:"Ordered word polygons, plus geocoded names.",strain:"(unverified)",sev:"1890s OS London (285,846 sequences)",scode:"Preprint CC BY"},
+
+{id:"G1",t:"GR",title:"Automatic Georeferencing of Topographic Raster Maps",by:"Milleville, Verstockt & Van de Weghe · 2022 · ISPRS IJGI 11(7):387",link:"https://doi.org/10.3390/ijgi11070387",
+ over:"Reads place names with pretrained OCR, looks them up with public geocoders, and uses the matches as control points to fix the map's position.",
+ train:"None new (pretrained OCR).",ev:"16 historical and 9 modern topographic maps (1:25k and 1:50k; region unverified).",res:"Mean error 316 m (1.67%) historical, 287 m (0.90%) modern.",code:"(unverified)",
+ loc:"Map-to-world transform from geocoded text.",strain:"Pretrained OCR + public geocoders",sev:"16 historical + 9 modern topo maps"},
+{id:"G2",t:"GR",title:"Georeferencing historical maps using local feature matching and Delaunay consistency",by:"Vaienti, di Lenardo & Kaplan · 2025 · CaGIS",link:"https://doi.org/10.1080/15230406.2025.2566789",
+ over:"Matches new maps to already-georeferenced \"anchor\" maps of the same city with SuperPoint + SuperGlue, filters bad matches by checking the Delaunay triangle mesh stays consistent, and passes on control points. Map-to-map, no imagery.",
+ train:"Georeferenced anchor maps. Details (unverified; paywalled).",ev:"(unverified)",res:"(unverified)",code:"(unverified)",
+ loc:"Ground control points, then a warp.",strain:"Georeferenced anchor maps",sev:"(unverified)"},
+{id:"G3",t:"GR",title:"Automated Georeferencing of Topographic Maps via OCR and In-Context Multimodal LLM Reasoning",by:"Tyagi & Dubey · 2026 · CCIS (Springer)",link:"https://doi.org/10.1007/978-3-032-08511-5_8",
+ over:"EasyOCR finds the printed lat/lon tick labels around a sheet; a two-step multimodal LLM interprets them; an affine fit with outlier removal gives control points (unverified, publisher snippet).",
+ train:"EasyOCR + MLLM; no training reported.",ev:"12 topographic sheets; RMSE.",res:"Internal RMSE under 5 m; validation RMSE under 30 m on 11 maps (unverified).",code:"(unverified)",
+ loc:"GCPs from the map frame's coordinate labels.",strain:"EasyOCR + MLLM (no training)",sev:"12 topo sheets; RMSE"},
+
+{id:"E1",t:"E2E",t2:"AR",title:"Automatic vectorization of historical maps: A benchmark",by:"Chen Y. et al. · 2024 · PLOS ONE 19(2)",link:"https://doi.org/10.1371/journal.pone.0298217",
+ over:"Turns a scanned Paris city atlas into clean closed polygons (blocks, parcels) and tests many edge-detector + shape-closing combinations (U-Net, HED, BDCN, ViT, PVT, topology losses, watershed) to find what really matters.",
+ train:"Atlas Municipal de Paris (1:5000), 1926 sheet; 8,362 hand-drawn polygons in total.",ev:"An 1898-edition sheet; COCO panoptic quality.",
+ res:"U-Net with a better protocol 46.7% PQ; best 51.1% with contrast + thin-plate-spline augmentation. Transformers did not beat U-Net; a 4M-parameter mini U-Net scored 45.1%.",
+ code:"GitHub + Zenodo (CC BY 4.0)",codeLink:"https://github.com/soduco/Benchmark_historical_map_vectorization",
+ loc:"Closed polygons in pixel space.",strain:"Paris Atlas 1926 sheet; 8,362 polygons",sev:"1898 sheet; COCO PQ",scode:"Yes (GitHub, Zenodo)"},
+{id:"E2",t:"E2E",t2:"PT",pre:1,title:"DIGMAPPER: A Modular System for Automated Geologic Map Digitization",by:"Duan et al. · 2025 · arXiv:2506.16006",link:"https://arxiv.org/abs/2506.16006",
+ over:"The most complete published scan-in, GIS-layers-out system for geologic maps, built with USGS. LayoutLMv3 finds map body and legend; GPT-4o pairs legend swatches with descriptions; TOPAZ extracts polygons; LDTR (graph transformer) extracts faults; YOLOv8 detects point symbols; then georeferencing.",
+ train:"Points: ~10,000 synthetic 1000×1000 patches (~3,000 per class) made by stamping FGDC geologic symbols onto masked base maps, plus human labels from 100 USGS maps. Other modules (unverified).",
+ ev:"Layout 40 maps; polygons 11 maps / 221 legend items; faults 10 maps; points 10 maps / 5 types; georeferencing 63 maps.",
+ res:"Legend F1 0.90 on excellent maps. Polygons F1 0.98 / 0.77 / 0.28 on excellent / good / fair maps. Points F1 0.82 vs 0.79 with human labels only. Georeferencing median 0.104 km RMSE.",
+ code:"Related CriticalMAAS repos; DIGMAPPER-specific repo not found (unverified)",codeLink:"https://github.com/DARPA-CRITICALMAAS/uncharted-ta1",
+ loc:"Georeferenced vector polygons and lines with legend labels, plus points.",strain:"AI4CMA maps + ~10K synthetic point patches",sev:"100+ AI4CMA maps; F1, RMSE",scode:"Partly (CriticalMAAS)"},
+{id:"E3",t:"E2E",pre:1,title:"Detecting Legend Items on Historical Maps Using GPT-4o with In-Context Learning",by:"Kirsanova, Chiang & Duan · 2025 · arXiv:2510.08385",link:"https://arxiv.org/abs/2510.08385",
+ over:"Reading the legend is step zero for legend-driven extraction. LayoutLMv3 finds the legend area; GPT-4o, given a few worked examples in a JSON prompt, returns a box for each legend symbol and its description.",
+ train:"In-context examples only; no training.",ev:"USGS geologic maps.",res:"F1 88%, IoU 85%.",code:"(unverified)",
+ loc:"Bounding boxes in pixel space.",strain:"In-context examples (no training)",sev:"USGS maps; F1 88%, IoU 85%"}
+];
+
+const DS = [
+ ["ICDAR MapText – Rumsey","https://zenodo.org/records/10608901","Historical maps 1623–2012, worldwide, English. Word polygons, transcriptions, phrase groups.","940 tiles of 2000×2000 (200 / 40 / 700); ~34.5K train words","CC BY-NC-SA 3.0"],
+ ["ICDAR MapText – French Land Registers","https://zenodo.org/records/14392548","19th-c. French cadastral plans, mostly handwritten text and parcel numbers.","2024: 145 sheets, 17K+ words. 2025: 228 sheets + 18,073 synthetic tiles","CC BY-SA 4.0 (2025)"],
+ ["ICDAR MapText – Taiwanese topo","https://zenodo.org/communities/icdar-maptext","Taiwan 1900–1960, traditional Chinese, horizontal and vertical text.","311 of ~1,205 sheets annotated","(unverified)"],
+ ["SynthMap+","https://zenodo.org/records/14480731","Synthetic historical-style maps with word and phrase labels.","35,000 tiles (MapText release); 73,657 in the paper","CC BY 4.0"],
+ ["Rumsey-309 / Grinnell-UMass-31","https://arxiv.org/html/2506.15010v1","Text-spotting test sets from Rumsey maps.","309 tiles (13,145 labels) / 500 tiles (15,143)","(unverified)"],
+ ["Paris & Jerusalem Maps Text","https://weinman.cs.grinnell.edu/~weinman/pubs/lin25icdar.pdf","Historical city maps; detection, recognition, sequencing.","82 annotated samples","(unverified)"],
+ ["DARPA/USGS AI4CMA","https://doi.org/10.5066/P9FXSPT1","Scanned geologic and topographic maps. Per-legend-item binary rasters for points (1 px), fault lines and polygons, plus JSON legend boxes. Separate georeferencing data.","48 maps for features, 63 for georeferencing (per DIGMAPPER); full counts (unverified)","Public domain (via search summary)"],
+ ["Paris Atlas vectorization","https://zenodo.org/records/10567765","Atlas Municipal de Paris (1898, 1926), closed-shape polygons.","8,362 polygons","CC BY 4.0"],
+ ["ICDAR 2021 MapSeg (pre-window)","https://zenodo.org/records/8325527","Paris atlas segmentation and vectorization challenge; basis for E1.","See E1","CC BY 4.0"],
+ ["CaSiDD","https://doi.org/10.5281/zenodo.16278380","Generic cartographic signs across collections.","796 patches, 18,750 sign boxes, 24 frequent categories","(unverified)"],
+ ["YOLSO OS trees","https://eprints.whiterose.ac.uk/id/eprint/198859/","OS 1st-edition 1:2500, Yorkshire: tree points and woodland polygons.","135 tiles, 22,882 points, 782 polygons","Maps © Crown/Landmark; dataset (unverified)"],
+ ["MapReader OS patches","https://github.com/maps-as-data/MapReader","19th-c. OS patches labelled railspace / building.","62,020 labelled patches","(unverified)"],
+ ["MapSAM Siegfried","https://doi.org/10.3929/ethz-b-000691430","Railway and vineyard masks.","8,390 railway tiles, 877 vineyard tiles","(unverified)"],
+ ["Kenya historical roads","https://doi.org/10.5880/TRR228DB.37","Vector road network, 1950s–80s.","533 sheets, 56,000+ km","CC BY 4.0"],
+ ["Sanborn Columbus","https://doi.org/10.6084/m9.figshare.22637848","Code + labelled data for footprints and labels.","13 sheets","See figshare"]
+];
+
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const fmt = s => esc(s).replace(/\(unverified[^)]*\)/g, m => `<span class="uv">${m.slice(1,-1)}</span>`);
+const tags = p => [p.t, p.t2].filter(Boolean).map(t => `<span class="tag t-${t}">${t}</span>`).join(" ");
+
+let active = new Set(Object.keys(TASKS));
+let query = "";
+
+function matches(p) {
+  if (!active.has(p.t) && !(p.t2 && active.has(p.t2))) return false;
+  if (!query) return true;
+  const hay = [p.id,p.title,p.by,p.over,p.train,p.ev,p.res,p.code,p.loc].join(" ").toLowerCase();
+  return query.split(/\s+/).every(w => hay.includes(w));
+}
+
+function renderChips() {
+  const el = document.getElementById("chips");
+  el.innerHTML = Object.entries(TASKS).map(([k,v]) => {
+    const n = P.filter(p => p.t === k).length;
+    return `<button class="chip t-${k}" type="button" id="chip-${k}" data-k="${k}" aria-pressed="${active.has(k)}"><span class="sym"></span>${v} <span class="n">${n}</span></button>`;
+  }).join("");
+  el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.k;
+    if (active.size === Object.keys(TASKS).length) { active = new Set([k]); }
+    else if (active.has(k)) { active.delete(k); if (!active.size) active = new Set(Object.keys(TASKS)); }
+    else active.add(k);
+    renderChips(); render();
+  }));
+}
+
+function render() {
+  const list = P.filter(matches);
+  document.getElementById("count").textContent = `Showing ${list.length} of ${P.length} papers`;
+  document.getElementById("sumbody").innerHTML = list.length ? list.map(p => `
+    <tr><td class="id"><a href="#${p.id}" data-open="${p.id}">${p.id}</a></td>
+    <td>${esc(p.title.length > 70 ? p.title.slice(0,68) + "…" : p.title)}<br><span style="color:var(--muted);font-size:.85em">${esc(p.by)}</span> ${p.pre ? '<span class="pre">preprint</span>' : ""}</td>
+    <td>${tags(p)}</td><td>${fmt(p.strain)}</td><td>${fmt(p.sev)}</td><td>${fmt(p.scode || p.code)}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="empty">No papers match. Clear the search or turn a task filter back on.</td></tr>`;
+  document.getElementById("cards").innerHTML = list.map(p => {
+    const links = [[p.link.includes("arxiv") ? "Paper (arXiv)" : "Paper", p.link]].concat(p.extra || []);
+    if (p.codeLink) links.push(["Code / data", p.codeLink]);
+    return `<details class="paper t-${p.t}" id="${p.id}">
+      <summary><span class="pid">${p.id}</span><span class="ptitle">${esc(p.title)}</span><span class="chev" aria-hidden="true">›</span>
+      <span class="pby">${esc(p.by)} &nbsp;${tags(p)} ${p.pre ? '<span class="pre">preprint</span>' : ""}</span></summary>
+      <div class="pbody">
+        <p class="over">${fmt(p.over)}</p>
+        <dl>
+          <dt>Training data</dt><dd>${fmt(p.train)}</dd>
+          <dt>Evaluation</dt><dd>${fmt(p.ev)}</dd>
+          <dt>Results</dt><dd>${fmt(p.res)}</dd>
+          <dt>Locations</dt><dd>${fmt(p.loc)}</dd>
+          <dt>Code / data</dt><dd>${fmt(p.code)}</dd>
+        </dl>
+        <div class="links">${links.map(([l,u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(l)} ↗</a>`).join("")}</div>
+      </div></details>`;
+  }).join("");
+  document.querySelectorAll("[data-open]").forEach(a => a.addEventListener("click", () => {
+    const d = document.getElementById(a.dataset.open); if (d) d.open = true;
+  }));
+}
+
+document.getElementById("dsbody").innerHTML = DS.map(([n,u,c,s,l]) =>
+  `<tr><td><a href="${esc(u)}" target="_blank" rel="noopener">${esc(n)}</a></td><td>${fmt(c)}</td><td>${fmt(s)}</td><td>${fmt(l)}</td></tr>`).join("");
+document.getElementById("q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); render(); });
+renderChips(); render();
+if (location.hash) { const d = document.getElementById(location.hash.slice(1)); if (d && d.tagName === "DETAILS") d.open = true; }
+</script>
