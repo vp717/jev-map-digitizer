@@ -1,15 +1,16 @@
-"""Rendering helpers shared by render.py, gt_render_diff.py and legend_sheet.py."""
+"""Rendering helpers: openstreetmap-carto via Mapnik to RGBA arrays and GeoTIFFs."""
 import math, os
 import numpy as np
 import mapnik
 from osgeo import gdal, osr
 
-from geo import ORIGIN, lonlat_to_3857, res_at_zoom
+from mapdig.geo import ORIGIN, lonlat_to_3857, res_at_zoom
 
 gdal.UseExceptions()
 mapnik.logger.set_severity(getattr(mapnik.severity_type, "None"))  # silence missing-font warnings
 CARTO_DIR = os.environ.get("CARTO_DIR", "/opt/openstreetmap-carto")
 STYLE_XML = os.path.join(CARTO_DIR, "mapnik.xml")
+LAND_COLOUR = "#f2efe9"  # openstreetmap-carto @land-color
 _fonts_done = False
 
 def register_fonts():
@@ -34,7 +35,9 @@ def snap_bbox(minx, miny, maxx, maxy, zoom):
     return minx, miny, maxx, maxy
 
 def render_array(bbox3857, zoom, scale=1.0, xml=None, buffer=256):
-    """Render to an (H, W, 4) uint8 RGBA array. `xml` overrides the style (string)."""
+    """Render to an (H, W, 4) uint8 RGBA array. `xml` overrides the style (string).
+
+    Deterministic only with PostgreSQL parallel query off (see docker-compose.yml)."""
     register_fonts()
     minx, miny, maxx, maxy = bbox3857
     res = res_at_zoom(zoom, scale)
@@ -54,9 +57,10 @@ def render_array(bbox3857, zoom, scale=1.0, xml=None, buffer=256):
 def write_geotiff(arr, bbox3857, path, metadata=None):
     minx, miny, maxx, maxy = bbox3857
     h, w, nb = arr.shape
-    drv = gdal.GetDriverByName("GTiff")
-    ds = drv.Create(path, w, h, nb, gdal.GDT_Byte,
-                    ["COMPRESS=DEFLATE", "TILED=YES", "PREDICTOR=2", "PHOTOMETRIC=RGB", "ALPHA=YES"])
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    ds = gdal.GetDriverByName("GTiff").Create(
+        path, w, h, nb, gdal.GDT_Byte,
+        ["COMPRESS=DEFLATE", "TILED=YES", "PREDICTOR=2", "PHOTOMETRIC=RGB", "ALPHA=YES"])
     ds.SetGeoTransform((minx, (maxx - minx) / w, 0, maxy, 0, -(maxy - miny) / h))
     srs = osr.SpatialReference(); srs.ImportFromEPSG(3857)
     ds.SetProjection(srs.ExportToWkt())

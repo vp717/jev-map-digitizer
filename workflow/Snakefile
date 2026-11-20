@@ -1,0 +1,106 @@
+# map-digitizer workflow. Every rule calls one `mapdig` stage inside a container, so any
+# step can also be run by hand. Config values reach rules through params:, so changing one
+# re-runs only the rules that use it (Snakemake's default --rerun-triggers include params).
+#
+#   uv run snakemake -n                 # what would run
+#   uv run snakemake --cores 4          # run everything stale
+#   uv run snakemake --configfile config/experiments/<name>.yaml --cores 4
+
+import os, subprocess
+
+configfile: "config/experiments/osm_phase1.yaml"
+
+EXP = config["name"]
+OUT = f"out/{EXP}"
+ZOOMS, SCALES, AREAS = config["render"]["zooms"], config["render"]["scales"], list(config["areas"])
+PBF = "data/" + os.path.basename(config["data"]["extract_url"])
+DB_STAMP = "out/_shared/db_import.json"
+
+wildcard_constraints:
+    zoom=r"\d+",
+    scale=r"\d+(\.\d+)?",
+    area=r"[a-z0-9_]+",
+
+def _git(*args):
+    return subprocess.run(["git", *args], capture_output=True, text=True).stdout.strip()
+
+def _image_id(name):
+    return subprocess.run(["docker", "image", "inspect", "--format", "{{.Id}}", name],
+                          capture_output=True, text=True).stdout.strip() or "unbuilt"
+
+GIT_COMMIT, GIT_DIRTY = _git("rev-parse", "HEAD"), int(bool(_git("status", "--porcelain")))
+if GIT_DIRTY:
+    print("NOTE: working tree has uncommitted changes; manifests will record dirty=true.")
+
+def container(service, db=True):
+    """docker compose run prefix: runs as the host user so outputs stay user-owned."""
+    return (f"docker compose run --rm -T {'' if db else '--no-deps '}--user {os.getuid()}:{os.getgid()} "
+            f"-e MAPDIG_GIT_COMMIT={GIT_COMMIT} -e MAPDIG_GIT_DIRTY={GIT_DIRTY} "
+            f"-e MAPDIG_IMAGE={_image_id('map-digitizer-' + service)} {service}")
+
+RENDER, RENDER_NODB = container("render"), container("render", db=False)
+
+
+rule all:
+    input:
+        expand(f"{OUT}/maps/{{area}}/z{{zoom}}_s{{scale}}/gt.gpkg", area=AREAS, zoom=ZOOMS, scale=SCALES),
+        expand(f"{OUT}/legend/z{{zoom}}_s{{scale}}/sheet.png", zoom=ZOOMS, scale=SCALES),
+
+
+rule fetch:
+    output: protected(PBF)
+    params: url=config["data"]["extract_url"], md5=config["data"]["extract_md5"]
+    shell: "{RENDER_NODB} mapdig fetch --url {params.url} --md5 {params.md5} --out {output}"
+
+
+rule extract_info:
+    input: PBF
+    output: PBF + ".info.json"
+    params: url=config["data"]["extract_url"]
+    shell: "{RENDER_NODB} mapdig extract-info --pbf {input} --url {params.url} --out {output}"
+
+
+rule import_db:
+    input: pbf=PBF, info=PBF + ".info.json"
+    output: DB_STAMP
+    params: style=config["data"]["style_version"]
+    shell: "{RENDER} mapdig import-db --pbf {input.pbf} --style-version {params.style} --out {output}"
+
+
+rule legend:
+    input: classes=config["classes"]
+    output:
+        sheet=f"{OUT}/legend/z{{zoom}}_s{{scale}}/sheet.png",
+        gt=f"{OUT}/legend/z{{zoom}}_s{{scale}}/sheet_gt.json",
+        control=directory(f"{OUT}/legend/z{{zoom}}_s{{scale}}/control"),
+        manifest=f"{OUT}/legend/z{{zoom}}_s{{scale}}/manifest.json",
+    params: columns=config["render"]["legend_columns"]
+    shell:
+        "{RENDER_NODB} mapdig legend --classes {input.classes} --zoom {wildcards.zoom} "
+        "--scale {wildcards.scale} --columns {params.columns} --outdir $(dirname {output.sheet})"
+
+
+rule groundtruth:
+    input:
+        db=DB_STAMP,
+        classes=config["classes"],
+        legend_gt=f"{OUT}/legend/z{{zoom}}_s{{scale}}/sheet_gt.json",
+    output:
+        tif=f"{OUT}/maps/{{area}}/z{{zoom}}_s{{scale}}/map.tif",
+        gt=f"{OUT}/maps/{{area}}/z{{zoom}}_s{{scale}}/gt.gpkg",
+        summary=f"{OUT}/maps/{{area}}/z{{zoom}}_s{{scale}}/gt_summary.csv",
+        manifest=f"{OUT}/maps/{{area}}/z{{zoom}}_s{{scale}}/manifest.json",
+    params: bbox=lambda w: " ".join(map(str, config["areas"][w.area]))
+    log: f"{OUT}/logs/groundtruth/{{area}}_z{{zoom}}_s{{scale}}.log"
+    shell:
+        "{RENDER} mapdig groundtruth --area {wildcards.area} --bbox {params.bbox} --zoom {wildcards.zoom} "
+        "--scale {wildcards.scale} --classes {input.classes} --legend-gt {input.legend_gt} "
+        "--outdir $(dirname {output.tif}) > {log} 2>&1"
+
+
+# Not part of `all`: used once to choose classes.  uv run snakemake out/osm_phase1/class_counts_z17.csv
+rule count_classes:
+    input: DB_STAMP
+    output: f"{OUT}/class_counts_z{{zoom}}.csv"
+    params: areas=lambda w: " ".join(f"--area {n} " + " ".join(map(str, b)) for n, b in config["areas"].items())
+    shell: "{RENDER} mapdig count-classes {params.areas} --zoom {wildcards.zoom} --out {output}"

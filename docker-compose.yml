@@ -1,8 +1,7 @@
 # Local OSM rendering stack: PostGIS database + Mapnik/openstreetmap-carto renderer.
-# Usage:
+# Normally driven by Snakemake (see workflow/Snakefile). By hand:
 #   docker compose up -d db
-#   docker compose run --rm render import.sh        # download extract + load database (once)
-#   docker compose run --rm render render.py --help # render GeoTIFFs into ./out
+#   docker compose run --rm --user "$(id -u):$(id -g)" render mapdig --help
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -40,12 +39,8 @@ services:
       # Parallel query returns rows in varying order, which changes label/icon collision
       # and makes renders non-deterministic. Must stay off for render-diff ground truth.
       PGOPTIONS: "-c max_parallel_workers_per_gather=0"
-      EXTRACT_URL: https://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez/freiburg-regbez-latest.osm.pbf
     volumes:
-      - ./data:/data
-      - ./out:/out
-      - ./scripts:/opt/mapdig/scripts:ro
-      - ./config:/opt/mapdig/config:ro
+      - .:/work
     depends_on:
       db:
         condition: service_healthy

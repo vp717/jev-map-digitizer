@@ -1,6 +1,6 @@
 # Pipeline spec: reproducible runs (DRAFT)
 
-Status: draft 2026-11-20. Items marked **[Q#]** wait on a decision (see the end).
+Status: decisions settled 2026-11-20. Stages 1–5 run under Snakemake; the rest are still to build.
 
 ## Goal
 
@@ -74,7 +74,7 @@ api: {cache: cache/api, mode: online}             # online | offline | refresh
   - `offline`: a miss is an error. Used for paper replays and CI.
   - `refresh`: always call and overwrite.
 - Cost: every call logs token usage. `mapdig cost <run_id>` sums it. Each run's manifest records total calls and cost.
-- Archiving: the cache for paper runs is frozen and published alongside the paper. **[Q4]**
+- Archiving: the cache for paper runs is frozen and published alongside the paper.
 
 ## Containers
 
@@ -84,7 +84,7 @@ api: {cache: cache/api, mode: online}             # online | offline | refresh
 | `ml` | CUDA, PyTorch, Ultralytics, OpenCV, GDAL | stages 8–13 (GPU for `train` / YOLO / YOLSO inference) |
 | `db` | PostGIS 16-3.4, parallel query off | stages 2–4 |
 
-**[Q3]**
+
 
 ## Determinism
 
@@ -108,7 +108,7 @@ mapdig cost <run_id>|<experiment>
 
 - ~~[Q1] Workflow engine~~ **Decided 2026-11-20: Snakemake.** See `lessons/0001-what-reruns-when-you-change-something.html` for the comparison.
 - CLI name: `mapdig` (accepted 2026-11-20).
-- **[Q2]** Packaging of the CLI.
-- **[Q3]** Container split.
-- **[Q4]** Where large outputs and the API cache live.
-- **[Q5]** Version control.
+- **Q2 decided:** `mapdig` is a Python package in `src/mapdig/` (`pyproject.toml`, uv). Snakemake is pinned in the `workflow` dependency group and runs on the host. The render image runs `mapdig` from the mounted source (`PYTHONPATH=/work/src`), because Mapnik and GDAL come from system packages.
+- **Q3 decided:** three containers: `render`, `db`, and `ml` (not built yet). The `ml` container waits on the NVIDIA Container Toolkit in WSL. Rules call `docker compose run --rm -T --user UID:GID <service> mapdig <stage>`. The repo is mounted at `/work`, so paths are identical inside and outside.
+- **Q4 decided:** a local `cache/` folder (git-ignored). The API cache is frozen and published on Zenodo at submission, together with the OSM extract.
+- **Q5 decided:** git, commits as `vp717`. Runs with uncommitted changes are allowed and recorded as `dirty: true` in every manifest. The `report` stage will refuse dirty inputs unless `allow_dirty` is set, so paper numbers come from committed code.

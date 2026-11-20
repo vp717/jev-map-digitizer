@@ -10,6 +10,8 @@ ARG CARTO_VERSION=v5.9.0
 RUN git clone --depth 1 --branch ${CARTO_VERSION} https://github.com/gravitystorm/openstreetmap-carto.git /opt/openstreetmap-carto
 WORKDIR /opt/openstreetmap-carto
 RUN ln -s /usr/share/fonts fonts && carto project.mml > mapnik.xml
-ENV CARTO_VERSION=${CARTO_VERSION} PATH="/opt/mapdig/scripts:${PATH}" \
-    CARTO_DIR=/opt/openstreetmap-carto
-WORKDIR /opt/openstreetmap-carto
+# The repo is mounted at /work (same relative paths as the host); mapdig runs from source.
+ENV CARTO_VERSION=${CARTO_VERSION} CARTO_DIR=/opt/openstreetmap-carto \
+    PYTHONPATH=/work/src HOME=/tmp PYTHONDONTWRITEBYTECODE=1
+RUN printf '#!/bin/sh\nexec python3 -m mapdig "$@"\n' > /usr/local/bin/mapdig && chmod +x /usr/local/bin/mapdig
+WORKDIR /work
