@@ -4,6 +4,22 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Icon audit: everything that renders to our 26 icons
+
+Full table in [icon-audit.md](icon-audit.md), produced by `mapdig icon-audit`.
+- **The ground truth catches every draw.** All uses of the 26 icon files are `MarkersSymbolizer`s in `amenity-points`, so the render diff captures every draw of each class, whatever tag produced it.
+- **Hidden appearance variants.** Ground-truth points now record `appearance` and `variant_rules`. **61% of drawn Parking in Freiburg centre is the faded access-restricted variant** (opacity 0.33), which the legend doesn't show. On the demo tile, faded Parking was found 1 of 4 and full-colour 2 of 2. Picnic site is mostly the grey `picnic_table` variant (4 of 5), while the legend shows the green `picnic_site`.
+- **Name gaps:**
+  - Doctor also covers `clinic`.
+  - Fitness is mostly gyms (`fitness_centre`).
+  - Memorial is overwhelmingly **Stolpersteine** (490 of about 506 in Freiburg centre).
+  - Church covers any Christian place of worship.
+
+  The proposed labels are in `config/osm_classes_z17_v2.csv`. They are not yet used, because new labels mean new prompts.
+- **Open decision:** how the legend and the scoring should treat appearance variants.
+
+---
+
 ## 2026-11-20: Change 4: the Fitness "hallucinations" were Dance icons
 
 **Trigger.** The user suspected a dance-studio icon. Looking at the two baseline Fitness false positives confirmed it: they are openstreetmap-carto's **Dance** icon (`leisure/dance.svg`), drawn in the same green `#0c8416` at the same size as Fitness (`leisure/fitness.svg`). Dance wasn't one of our 25 classes, so it was missing from the ground truth and from the Choice options.
