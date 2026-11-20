@@ -42,6 +42,47 @@ class Jev:
 
         return self.cache.get_or_call("typesafe", request, call)
 
+    def present_batch(self, tile_png: bytes, legends, use_label=True):
+        """One call, one map image, many legend excerpts: a Noul per (label, legend_png). Returns the cache entry.
+        Answers are keyed q00, q01, ... in the order given."""
+        from typesafe_sdk import Image, Noul
+        p = PROMPTS[self.pv]
+        request = {"model": self.model, "prompt_version": self.pv, "questions": "present_batch",
+                   "tile_sha256": sha256_bytes(tile_png),
+                   "legends": [[lab if use_label else None, sha256_bytes(b)] for lab, b in legends]}
+
+        def call():
+            tile = Image(tile_png)
+            imgs = [Image(b) for _, b in legends]
+            qs = {f"q{i:02d}": Noul(instructions=p["present"].format(symbol=_symbol_phrase(lab, str(img), use_label)))
+                  for i, ((lab, _), img) in enumerate(zip(legends, imgs))}
+            with self.client.attach_assets(imgs):
+                r = self.client.system_one(state={"map": tile}, questions=qs, model=self.model)
+            return r.model_dump(mode="json"), r.usage.model_dump(mode="json")
+
+        return self.cache.get_or_call("typesafe", request, call)
+
+    def which_symbol(self, crop_png: bytes, options, none_label="none of these"):
+        """Choice: which legend excerpt is drawn at the centre of `crop`? options: [(label, legend_png)].
+        Adds a text option for 'none of these'. Returns the cache entry."""
+        from typesafe_sdk import Choice, Image
+        request = {"model": self.model, "prompt_version": self.pv, "questions": "which_symbol",
+                   "crop_sha256": sha256_bytes(crop_png), "options": [[lab, sha256_bytes(b)] for lab, b in options],
+                   "none": none_label}
+
+        def call():
+            crop = Image(crop_png)
+            criteria = {lab: Image(b) for lab, b in options}
+            criteria[none_label] = "The centre of `crop` shows none of these symbols (background, text, or another symbol)."
+            r = self.client.system_one(
+                state={"crop": crop},
+                questions={"which": Choice(instructions="Which of these legend symbols is drawn at the centre of `crop`?",
+                                           criteria=criteria)},
+                model=self.model)
+            return r.model_dump(mode="json"), r.usage.model_dump(mode="json")
+
+        return self.cache.get_or_call("typesafe", request, call)
+
     def present_and_where(self, tile_png: bytes, legend_png: bytes, label: str, use_label=True):
         """One call with two questions: Noul 'present?' and Box 'where?'. Returns the cache entry."""
         from typesafe_sdk import Box, Image, Noul

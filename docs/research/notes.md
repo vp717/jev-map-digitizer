@@ -4,6 +4,43 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Multi-image calls: batched screening and a Choice check on detections
+
+**Setup.** Stage `exp-multiimage`. Outputs: `out/osm_phase1/exp_multiimage/{summary.json,screening.csv,choice.csv}`. This run made 275 new calls (about $0.07).
+- **A. Screening.** 8 non-overlapping 640 px tiles in Freiburg centre (the demo tile plus 7 seeded random ones), 25 classes each, giving 200 class–tile pairs (93 present, 107 absent). Two methods:
+  - *single*: 25 calls per tile, one legend excerpt each.
+  - *batch*: 1 call per tile with all 25 excerpts attached and 25 Noul questions.
+- **B. Choice check.** Each of the demo tile's 94 detections is cropped (40 px, enlarged ×8). Jev picks one option out of 26: the 25 legend excerpts as image options, plus "none of these". A detection is kept only if the pick is its own class.
+
+**A. Batched screening: same overall quality, ~10× cheaper, ~20× faster.**
+
+| | Accuracy @0.5 | AUC | Missed present | False present | Calls | Tokens | Cost | Latency (sequential) |
+|---|---|---|---|---|---|---|---|---|
+| single | 0.855 | 0.907 | 19/93 | 10/107 | 200 | 963,579 | $0.0405 | 111 s |
+| batch | 0.865 | 0.899 | 18/93 | 9/107 | 8 | 93,565 | **$0.0039** | **5.0 s** |
+
+- Agreement at the 0.5 threshold: 97%. Correlation of P: 0.97. Mean |ΔP| = 0.029.
+- **Token split** (from the two call shapes): a 1280 px tile costs about 4,530 tokens, and each 280 px legend excerpt about 286 tokens. A batched call is about 11,700 tokens.
+- **One severe batch failure.** On tile 6, batch gave **Doctor P = 0.07 against single 0.77, with 9 Doctors present**. Pharmacy also dropped (0.64 to 0.06; it was absent). The other 23 answers on that tile agree, so this is not an answer-ordering bug. Batching can occasionally miss a class that single calls catch, so it needs a larger sample before it replaces single calls.
+- **Screening quality in general:** across random tiles, single-call screening misses 19 of 93 present classes (20%). That is far worse than on the dense demo tile, where it missed 2 of 20, and it limits recall upstream of the loop. The threshold and prompt need tuning on validation tiles.
+
+**B. Choice check: precision up, recall down, F1 about the same.**
+
+| | Predictions | Correct | Precision | Recall | F1 |
+|---|---|---|---|---|---|
+| before | 94 | 74 | 0.787 | 0.831 | 0.809 |
+| after Choice | 77 | 68 | **0.883** | 0.764 | 0.819 |
+
+- It removed 11 of 20 false positives:
+  - all the look-alike confusions: Statue→Artwork ×3, Statue→Bust, Pharmacy→Doctor, Taxi→Bus stop, Church→Statue;
+  - plus 4 that it labelled "none of these".
+- It lost 6 correct detections: 4 to "none of these", Traffic signals→Parking, and Artwork→Statue.
+- It kept the Fitness station "hallucinations" with P(own) 0.93–0.95. **Open question:** is there really a fitness-like icon there that the ground truth lacks, such as another class using a similar runner symbol? Check visually.
+- Cost: 94 calls, about 6,800 tokens each, $0.027, 22 s total. That is about +$0.0003 per detection, so cheap relative to the loop.
+- **Better rule to try:** reject only when Jev picks a *different legend class*, and keep the detection when it picks "none of these". That would keep the 4 correct detections lost to "none" and still remove the 7 cross-class false positives.
+
+---
+
 ## 2026-11-20: Call-level trace of the single-tile run
 
 **What.** Every call for Doctor, Statue and Parking (92 loop calls), all 25 screening calls and the Opus call were traced. `mapdig demo-tile --trace-classes ... --api-mode offline` writes the exact PNG bytes sent, the prompt text and the raw answers to `out/osm_phase1/demo_tile_trace/`.

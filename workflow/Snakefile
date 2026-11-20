@@ -164,3 +164,21 @@ rule demo_tile:
     shell:
         "{ML} mapdig demo-tile --map {input.map} --gt {input.gt} --symbols {input.symbols} {params.tile} "
         "{params.api} --outdir $(dirname {output.report}) > {log} 2>&1"
+
+
+# Not part of `all`. Paid (cached): uv run snakemake out/osm_phase1/exp_multiimage/summary.json --cores 1
+rule exp_multiimage:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        gt=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/gt.gpkg",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        report=f"{OUT}/demo_tile/report.json",
+    output:
+        summary=f"{OUT}/exp_multiimage/summary.json",
+        screening=f"{OUT}/exp_multiimage/screening.csv",
+        choice=f"{OUT}/exp_multiimage/choice.csv",
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/exp_multiimage.log"
+    shell:
+        "{ML} mapdig exp-multiimage --map {input.map} --gt {input.gt} --symbols {input.symbols} "
+        "--demo-report {input.report} --tiles 8 --seed 17 {params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
