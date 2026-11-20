@@ -4,6 +4,23 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Do Jev's wrong Choice answers look less confident?
+
+Read from cached responses only (offline, no new calls). Top-option probability per answer, 31-row Choice, medical icons:
+
+| | right: median top-prob | wrong: median (IQR) | wrong with top-prob < 0.6 |
+|---|---|---|---|
+| names, first answers (92 right / 27 wrong) | 1.00 | 0.81 (0.66–1.00) | 19% |
+| codes, first answers (101 / 18) | 1.00 | 0.88 (0.62–0.98) | 22% |
+| names, 30x repeats (232 / 68) | 0.99 | 0.81 (0.65–0.99) | 15% |
+| codes, 30x repeats (229 / 71) | 1.00 | 0.75 (0.65–1.00) | 17% |
+
+- Right answers are almost always about 1.00 confident. Wrong answers are less confident **on average**, but about a quarter of them are still at about 1.00, so they are confidently wrong.
+- The best single cutoff (top-prob 0.95) labels 88% (names) and 91% (codes) of answers correctly as right or wrong, against 77% and 85% from trusting every answer.
+- Correction to the flakiness entry: the per-call confidence does carry signal. A low top-prob is a useful trigger to ask again. It just can't catch the confidently wrong answers, which voting still handles.
+
+---
+
 ## 2026-11-20: Jev is non-deterministic: identical calls give different answers
 
 **Setup.**
