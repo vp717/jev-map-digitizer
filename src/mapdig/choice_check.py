@@ -14,6 +14,8 @@ def add_args(p):
     p.add_argument("--map", required=True)
     p.add_argument("--symbols", required=True)
     p.add_argument("--demo-report", required=True)
+    p.add_argument("--label-mode", choices=["names", "codes"], default="names")
+    p.add_argument("--only-classes", nargs="*", default=[], help="score only these classes (truth and detections)")
     p.add_argument("--margin", type=int, default=3)
     p.add_argument("--match-px", type=float, default=7)
     p.add_argument("--cache", default="cache/api")
@@ -53,6 +55,9 @@ def run(a):
         c = Image.new("RGB", (side, side), LAND); c.paste(im, ((side - im.width) // 2, (side - im.height) // 2)); return c
     sym = json.load(open(a.symbols)); sdir = os.path.dirname(a.symbols)
     entries = [e for e in sym["entries"] if e["crop"]]
+    if a.label_mode == "codes":
+        from mapdig.labels import anonymize
+        entries = anonymize(entries)
     row_class = {e["label"]: e["gt_label"] for e in entries}
     def legend(e):
         icon = Image.open(os.path.join(sdir, e["crop"])).convert("RGB")
@@ -78,7 +83,7 @@ def run(a):
         rows.append({**{k: pr[k] for k in ("label", "gt_label", "x", "y", "match")}, "choice": ans["choice"], "choice_class": cls,
                      "p_class": round(p_class, 3), "p_none": probs.get("none of these"),
                      "strict": cls == pr["gt_label"], "gentle": not (cls is not None and cls != pr["gt_label"])})
-    truth = r["truth"]
+    truth = [t for t in r["truth"] if not a.only_classes or t["label"] in a.only_classes]
     out = {"loop": match(r["predictions"], truth, a.match_px),
            "strict": match([q for q in rows if q["strict"]], truth, a.match_px),
            "gentle": match([q for q in rows if q["gentle"]], truth, a.match_px),

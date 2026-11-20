@@ -509,6 +509,69 @@ Dance not forced (screening decides)</pre></div>
 </section>
 </div>
 
+<!-- ======================= TAB: CHANGE 6 ======================= -->
+<div class="panel" id="panel-change-6" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c6-meta"></div>
+  <p class="verdict">Hiding the legend names helps the search loop. With the word "Pharmacy" in the prompt, the Pharmacy loop kept claiming Doctor icons; with an arbitrary code it mostly stopped. For the final class decision the evidence is mixed: codes did better on every medical icon in the area, names did better in the tile Choice check, and about a third of icons got a different answer under the two conditions.</p>
+  <div class="stats" id="c6-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>Change 5's Choice check began answering "Pharmacy" for Doctor icons. The question was whether the words themselves pull Jev's answer, through what a doctor, pharmacy or hospital means, rather than the symbols' shapes.</p>
+</section>
+<section>
+  <h2>What changed</h2>
+  <p>Only the text Jev sees as each legend row's label. Every image, crop, tile, prompt template and threshold is identical between the two conditions. The scoring class is never changed.</p>
+  <div class="ba">
+    <div><h3>names<span class="tag">as in Change 5</span></h3><pre>Does `map` contain at least one instance of the map
+symbol shown in this legend excerpt [legend image],
+which the legend labels 'Pharmacy'? ...
+
+Choice options: "Doctor / clinic", "Pharmacy",
+"Hospital", ... (31 legend rows) + "none of these"</pre></div>
+    <div class="after"><h3>codes<span class="tag">change 6</span></h3><pre id="c6-codes-pre"></pre></div>
+  </div>
+  <p class="cap">Codes come from a fixed shuffled order (seed 17) over the 31 legend rows, so the numbers carry no order or meaning.</p>
+  <h3>Where it was tested</h3>
+  <p>The medical classes only (Doctor / clinic, Pharmacy, Hospital). Freiburg centre was cut into non-overlapping 640&nbsp;px tiles. Every tile with a Hospital was taken, then the tiles with the most medical icons, up to 8 tiles. On each tile, screening and the search loop ran for the three medical classes. The Choice check then compared every detection against all 31 legend rows. Separately, every medical icon in Freiburg centre (119) was cropped from its true box and asked the 31-row Choice under both conditions.</p>
+  <div class="tiles" id="c6-tiles"></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <div class="tablewrap"><table><thead><tr><th>Step</th><th>Measure</th><th class="num">names</th><th class="num">codes</th></tr></thead><tbody id="c6-table"></tbody></table></div>
+  <h3>Search loop: wrong claims by class</h3>
+  <p id="c6-loopfp"></p>
+  <h3>Class decision on all 119 medical icons</h3>
+  <div class="tablewrap"><table><thead><tr><th>True class</th><th>names: what Jev picked</th><th>codes: what Jev picked</th></tr></thead><tbody id="c6-conf"></tbody></table></div>
+  <p id="c6-agree"></p>
+  <h3>Icons the two conditions disagree on</h3>
+  <div class="two">
+    <div><p class="cap">Codes right, names wrong</p><div class="cards" id="c6-flip-n" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))"></div></div>
+    <div><p class="cap">Names right, codes wrong</p><div class="cards" id="c6-flip-c" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))"></div></div>
+  </div>
+  <h3>Correct tile detections the Choice check removed (strict)</h3>
+  <p id="c6-lost"></p>
+</section>
+<section>
+  <h2>What this tells us</h2>
+  <ul>
+    <li><b>Names leak meaning into the yes/no search question.</b> "Is there a Pharmacy here?" was answered yes on Doctor icons: same red-cross family, related meaning. A code made Jev rely on the picture, and wrong Pharmacy claims fell from 11 to 3. A sensible default is to search with codes.</li>
+    <li><b>Names can also mislead the class decision.</b> On the 119-icon test, names produced 12 "Doctor / clinic → Hospital" answers (clinic is close in meaning to hospital); codes produced none.</li>
+    <li><b>But one Choice answer is noisy.</b> Codes, in turn, sent 8 correct tile Doctors to "Museum" and lost more Pharmacies. Answers flipped between conditions on about a third of the icons. The class decision needs more than one look, such as a vote over two crops or two option orders, before the choice of names or codes for it can be settled.</li>
+    <li><b>Screening was unaffected</b> (20 of 24 correct both ways).</li>
+  </ul>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>Medical classes on 8 tiles and 119 icons in one city: three look-alike symbols, a small slice of the legend.</li>
+    <li>The loop detections differ between conditions, so the tile Choice check judges different crops in each. The 119-icon test is the like-for-like comparison.</li>
+    <li>"Doctor / clinic → Museum" appears under both conditions. It may be a quirk of how the red doctor's-bag icon compares with the museum's columned building at this size, and needs a look.</li>
+  </ul>
+</section>
+</div>
+
 <footer>
   <span>Ground truth: render diff of openstreetmap-carto v5.9.0, OSM snapshot 2026-11-18T21:21:02Z. Jev <code>jev-1.14.0</code>, prompt v1. Legend reader <code>claude-opus-5-5</code>.</span>
   <span>Every model call is cached by the content of its request; all tabs regenerate offline with <code>mapdig runlog</code>.</span>
@@ -746,6 +809,40 @@ document.addEventListener("click", e => { const a = e.target.closest('a[href^="#
     `Cost: ${C.demo_cost.api_new_calls} new screening and loop calls (renamed classes and new rows) plus ${ch.cost.calls} Choice calls. Each Choice call carries ${ch.n_options} options at about ${Math.round(ch.cost.tokens / ch.cost.calls).toLocaleString()} tokens.`
   ].map(t => `<li>${esc(t)}</li>`).join("");
   $("c5-lost").innerHTML = C.rows_lost.map(q => `<tr><td>${esc(q.gt_label)}</td><td>${esc(q.choice)}</td><td class="num">${fmt(q.p_class)}</td><td class="num">${fmt(q.p_none)}</td></tr>`).join("");
+})();
+
+// ---------- change 6 ----------
+(() => {
+  const C = D.c6, N = C.summary.names, K = C.summary.codes;
+  $("c6-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", "stage exp-anon", `${N.cost.new_calls + K.cost.new_calls + C.icon_cost.calls} calls`]);
+  const total = N.cost.loop_usd + N.cost.choice_usd + K.cost.loop_usd + K.cost.choice_usd + C.icon_cost.usd;
+  $("c6-stats").innerHTML = stat(fmt(N.loop.precision) + " → " + fmt(K.loop.precision), "search-loop precision", "names → codes") +
+    stat(`${(C.loopfp.names.Pharmacy || 0)} → ${(C.loopfp.codes.Pharmacy || 0)}`, "wrong Pharmacy claims") +
+    stat(`${N.icons.correct} → ${K.icons.correct}`, "of 119 icons classed right") + stat(fmt(N.gentle.f1, 3) + " → " + fmt(K.gentle.f1, 3), "tile F1 after Choice (gentle)") + stat("$" + fmt(total, 2), "experiment cost");
+  const med = C.codes.filter(c => /Doctor|Pharmacy|Hospital|Museum/.test(c.name));
+  $("c6-codes-pre").textContent = `Does \`map\` contain at least one instance of the map
+symbol shown in this legend excerpt [legend image],
+which the legend labels '${C.codes.find(c => c.name === "Pharmacy").code}'? ...
+
+Choice options: ${med.map(c => `"${c.code}"`).join(", ")}, ...
+(31 legend rows) + "none of these"
+${med.map(c => `  ${c.code} = ${c.name}`).join("\n")}  (hidden from Jev)`;
+  $("c6-tiles").innerHTML = C.tiles.map((t, i) => `<div class="tilecard"><img src="${t.img}" alt="tile ${i}"><b>Tile ${i}</b><span class="mono">Doctor ${t.counts["Doctor / clinic"]} · Pharm. ${t.counts.Pharmacy} · Hosp. ${t.counts.Hospital}</span></div>`).join("");
+  const rows = [
+    ["Screening", "correct of 24", N.screening.correct, K.screening.correct],
+    ["Search loop", "precision", fmt(N.loop.precision, 3), fmt(K.loop.precision, 3)], ["", "recall", fmt(N.loop.recall, 3), fmt(K.loop.recall, 3)], ["", "F1", fmt(N.loop.f1, 3), fmt(K.loop.f1, 3)],
+    ["After Choice (strict)", "precision / recall", `${fmt(N.strict.precision)} / ${fmt(N.strict.recall)}`, `${fmt(K.strict.precision)} / ${fmt(K.strict.recall)}`], ["", "F1", fmt(N.strict.f1, 3), fmt(K.strict.f1, 3)],
+    ["After Choice (gentle)", "F1", fmt(N.gentle.f1, 3), fmt(K.gentle.f1, 3)],
+    ["119 medical icons", "classed right", N.icons.correct, K.icons.correct], ["", "mean P(true class)", fmt(N.icons.mean_p_true), fmt(K.icons.mean_p_true)],
+    ["Cost", "loop + Choice on tiles", "$" + fmt(N.cost.loop_usd + N.cost.choice_usd, 3), "$" + fmt(K.cost.loop_usd + K.cost.choice_usd, 3)]];
+  $("c6-table").innerHTML = rows.map(([a, b, n, k]) => `<tr><td>${a}</td><td>${b}</td><td class="num">${n}</td><td class="num">${k}</td></tr>`).join("");
+  const fmtC = o => Object.entries(o).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${esc(k)} ${v}`).join(" · ");
+  $("c6-loopfp").textContent = `Detections that matched no true icon of their class, per searched class. names: ${fmtC(C.loopfp.names)}. codes: ${fmtC(C.loopfp.codes)}.`;
+  $("c6-conf").innerHTML = ["Doctor / clinic", "Pharmacy", "Hospital"].map(t => `<tr><td>${t}</td><td>${fmtC(N.icons.confusion[t])}</td><td>${fmtC(K.icons.confusion[t])}</td></tr>`).join("");
+  $("c6-agree").textContent = `Agreement on the 119 icons: both right ${C.agree.both}, only names right ${C.agree.only_names}, only codes right ${C.agree.only_codes}, both wrong ${C.agree.neither}. So ${C.agree.only_names + C.agree.only_codes} icons (${Math.round(100 * (C.agree.only_names + C.agree.only_codes) / 119)}%) flip between conditions.`;
+  const card = f => `<div class="card"><img src="${f.img}" alt=""><div class="row"><span>truth</span><b>${esc(f.truth)}</b></div><div class="row"><span>names</span><b>${esc(f.names)}</b></div><div class="row"><span>codes</span><b>${esc(f.codes)}</b></div></div>`;
+  $("c6-flip-n").innerHTML = C.flips.names_wrong.map(card).join(""); $("c6-flip-c").innerHTML = C.flips.codes_wrong.map(card).join("");
+  $("c6-lost").textContent = `names: ${fmtC(C.lost.names) || "none"}. codes: ${fmtC(C.lost.codes) || "none"}.`;
 })();
 
 show(location.hash.slice(1));

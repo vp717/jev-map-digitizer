@@ -230,6 +230,20 @@ rule choice_check:
         "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
 
 
+# Change 6: names vs arbitrary codes, medical classes (use the osm_phase1_v2 config)
+rule exp_anon:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        gt=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/gt.gpkg",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+    output: summary=f"{OUT}/exp_anon/summary.json"
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/exp_anon.log"
+    shell:
+        "{ML} mapdig exp-anon --map {input.map} --gt {input.gt} --symbols {input.symbols} --tiles 8 "
+        "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
+
+
 # Run-log page (one tab per run / method change); rebuild after any experiment.
 rule runlog:
     input:
@@ -238,6 +252,7 @@ rule runlog:
         f"{OUT}/exp_crop/summary.json",
         "out/osm_phase1_dance/exp_dance/summary.json",
         "out/osm_phase1_v2/choice_check/summary.json",
+        "out/osm_phase1_v2/exp_anon/summary.json",
         "src/mapdig/templates/runlog.html",
     output: "out/runlog/index.html"
     shell: "{ML} mapdig runlog --exp {OUT} --out out/runlog"

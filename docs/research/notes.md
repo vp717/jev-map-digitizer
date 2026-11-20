@@ -4,6 +4,36 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Change 6: legend names vs arbitrary codes (medical classes)
+
+**Hypothesis (user).** The thematic meaning of class names may pollute Jev's judgement.
+
+**Setup.**
+- Stage `exp-anon`, config `osm_phase1_v2`. Medical classes only: Doctor / clinic, Pharmacy, Hospital.
+- 8 non-overlapping 640 px tiles of Freiburg centre: every tile with a Hospital, then the tiles with the most medical icons (66 medical icons in total).
+- Per tile and condition: screening and search loop for the medical classes, then a Choice over all 31 legend rows.
+- Plus all 119 medical icons in Freiburg centre, cropped from their true box, each asked the 31-row Choice under both conditions.
+- *codes*: every label replaced by `symbol NN` from a seeded permutation, everywhere Jev sees a label. Images, prompts and thresholds are identical.
+- Cost about $0.37.
+
+| | names | codes |
+|---|---|---|
+| Screening correct / 24 | 20 | 20 |
+| Search loop P / R / F1 | 0.821 / 0.97 / 0.889 | 0.9 / 0.955 / **0.926** |
+| After Choice, strict F1 | **0.929** | 0.838 |
+| After Choice, gentle F1 | **0.93** | 0.871 |
+| 119 icons classed right | 92 | **101** |
+
+**Findings.**
+- **Names pollute the yes/no search.** The Pharmacy loop's wrong claims (mostly on Doctor icons) fell from **11 with names to 3 with codes**.
+- **Names can mislead the class decision.** Names produced 12 "Doctor / clinic → Hospital" answers on the 119-icon test; codes produced 0.
+- **But a single Choice answer is noisy.** 37 of 119 icons (31%) flip between conditions. Codes sent 8 tile Doctors to "Museum", and lost more Pharmacies (11/18 against 16/18).
+- Screening was unaffected.
+
+**Next.** Search with codes. For the class decision, use a vote over several looks (crops or option orders) before settling names vs codes. Also check the recurring Doctor→Museum confusion visually.
+
+---
+
 ## 2026-11-20: Change 5: full class names + legend rows for appearance variants
 
 **Setup.**

@@ -28,6 +28,10 @@ def add_args(p):
     p.add_argument("--match-px", type=float, default=7)
     p.add_argument("--cache", default="cache/api")
     p.add_argument("--api-mode", default="online", choices=["online", "offline", "refresh"])
+    p.add_argument("--label-mode", choices=["names", "codes"], default="names",
+                   help="codes: show Jev arbitrary 'symbol NN' codes instead of legend names (change 6)")
+    p.add_argument("--only-classes", nargs="*", default=[],
+                   help="restrict screening, search and scoring to these classes (ground-truth labels)")
     p.add_argument("--force-classes", nargs="*", default=[],
                    help="legend labels searched by the loop even if screening says no (ablation)")
     p.add_argument("--trace-classes", nargs="*", default=[],
@@ -59,6 +63,11 @@ def run(a):
     sym = json.load(open(a.symbols))
     sym_dir = os.path.dirname(a.symbols)
     entries = [e for e in sym["entries"] if e["crop"]]
+    if a.label_mode == "codes":
+        from mapdig.labels import anonymize
+        entries = anonymize(entries)
+    if a.only_classes:
+        entries = [e for e in entries if e["gt_label"] in a.only_classes]
     land = tuple(int(v) for v in np.asarray(Image.open(os.path.join(sym_dir, entries[0]["crop"])).convert("RGB"))[0, 0]) \
         if False else (242, 239, 233)   # openstreetmap-carto land colour #f2efe9
 
@@ -79,6 +88,8 @@ def run(a):
     in_tile = (gx >= tx) & (gx < tx + T) & (gy >= ty) & (gy < ty + T)
     truth = [{"label": l, "x": float(x - tx), "y": float(y - ty), "appearance": ap}
              for l, x, y, ap in zip(glab[in_tile], gx[in_tile], gy[in_tile], gapp[in_tile])]
+    if a.only_classes:
+        truth = [t for t in truth if t["label"] in a.only_classes]
 
     # overview: map thumbnail with the tile outlined
     sc = 1200 / W
@@ -131,7 +142,7 @@ def run(a):
         screening.append({"label": e["label"], "gt_label": e["gt_label"], "p_present": p, "n_true": n_true,
                           "screened_in": p >= a.screen_threshold or e["label"] in a.force_classes,
                           "forced": e["label"] in a.force_classes and p < a.screen_threshold})
-    images["legend_x2_example"] = save(legend_png(entries[11], k1), "03_legend_input_doctor_x2.png")
+    images["legend_x2_example"] = save(legend_png(entries[min(11, len(entries) - 1)], k1), "03_legend_input_x2.png")
     t_screen = time.time() - t0
 
     # 3. stage 2 search loop per screened-in class

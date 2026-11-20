@@ -5,7 +5,7 @@ needs under <out>/img and returns a JSON-able dict. The page template is
 src/mapdig/templates/runlog.html; the data is inlined so the page is self-contained apart
 from images. Add a builder + a panel in the template for every new change.
 """
-import csv, io, json, os, shutil
+import collections, csv, io, json, os, shutil
 
 def add_args(p):
     p.add_argument("--exp", default="out/osm_phase1")
@@ -236,13 +236,54 @@ def run(a):
           "rows_lost": [q for q in C5["rows"] if q["match"] == "TP" and not q["strict"]],
           "manifest": manifest(f"{E5}/choice_check/manifest.json")}
 
+    # ---------- tab 7: change 6, legend names vs arbitrary codes (medical classes) ----------
+    from mapdig.labels import anonymize
+    A6 = json.load(open(f"{E5}/exp_anon/summary.json"))
+    src5 = rasterio.open(f"{E5}/maps/freiburg_centre/z17_s1/map.tif")
+    tiles6 = []
+    for i, t in enumerate(A6["tiles"]):
+        rgb = np.moveaxis(src5.read((1, 2, 3), window=Window(t["x"], t["y"], 640, 640)), 0, -1)
+        tiles6.append({**t, "img": jpg(Image.fromarray(rgb), f"c6_tile{i}.jpg", 240)})
+    codes = {e["name"]: e["label"] for e in anonymize([e for e in sym5["entries"] if e["crop"]])}
+    rn = {q["k"]: q for q in A6["icons"]["names"]["rows"]}; rc = {q["k"]: q for q in A6["icons"]["codes"]["rows"]}
+    flips = {"names_wrong": [], "codes_wrong": []}
+    for k in rn:
+        n_ok, c_ok = rn[k]["choice_class"] == rn[k]["truth"], rc[k]["choice_class"] == rc[k]["truth"]
+        key = "names_wrong" if (c_ok and not n_ok) else "codes_wrong" if (n_ok and not c_ok) else None
+        if key and len(flips[key]) < 8:
+            flips[key].append({"truth": rn[k]["truth"], "names": rn[k]["choice_class"], "codes": rc[k]["choice_class"],
+                               "img": jpg(open_(f"{E5}/exp_anon/icons/{k:04d}.png"), f"c6_icon{k:04d}.jpg", 140)})
+    agree = {"both": 0, "only_names": 0, "only_codes": 0, "neither": 0}
+    for k in rn:
+        n_ok, c_ok = rn[k]["choice_class"] == rn[k]["truth"], rc[k]["choice_class"] == rc[k]["truth"]
+        agree["both" if n_ok and c_ok else "only_names" if n_ok else "only_codes" if c_ok else "neither"] += 1
+    def lost(mode):
+        cnt = collections.Counter()
+        for t in A6["per_tile"][mode]:
+            for q in t["choices"]:
+                if q["match"] == "TP" and q["choice_class"] != q["gt_label"]:
+                    cnt[f"{q['gt_label']} → {q['choice_class'] or 'none'}"] += 1
+        return dict(cnt)
+    def loopfp(mode):
+        cnt = collections.Counter()
+        for t in A6["per_tile"][mode]:
+            for q in t["choices"]:
+                if q["match"] == "FP":
+                    cnt[q["gt_label"]] += 1
+        return dict(cnt)
+    c6 = {"summary": A6["summary"], "tiles": tiles6, "flips": flips, "agree": agree,
+          "codes": [{"name": n, "code": c} for n, c in codes.items()], "icon_cost": A6["icon_test_cost"],
+          "lost": {m: lost(m) for m in ("names", "codes")}, "loopfp": {m: loopfp(m) for m in ("names", "codes")},
+          "manifest": manifest(f"{E5}/exp_anon/manifest.json")}
+
     data = {"tabs": [{"id": "run-1", "title": "Run 1 · baseline", "date": "2026-11-20"},
                      {"id": "change-1", "title": "Change 1 · batched screening", "date": "2026-11-20"},
                      {"id": "change-2", "title": "Change 2 · Choice check", "date": "2026-11-20"},
                      {"id": "change-3", "title": "Change 3 · tighter crops", "date": "2026-11-20"},
                      {"id": "change-4", "title": "Change 4 · Fitness vs Dance", "date": "2026-11-20"},
-                     {"id": "change-5", "title": "Change 5 · full names + variants", "date": "2026-11-20"}],
-            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4, "c5": c5}
+                     {"id": "change-5", "title": "Change 5 · full names + variants", "date": "2026-11-20"},
+                     {"id": "change-6", "title": "Change 6 · names vs codes", "date": "2026-11-20"}],
+            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4, "c5": c5, "c6": c6}
     tpl = open(os.path.join(os.path.dirname(__file__), "templates", "runlog.html")).read()
     open(os.path.join(O, "index.html"), "w").write(tpl.replace("/*DATA*/null", json.dumps(data, separators=(",", ":"))))
     files = sorted("img/" + f for f in os.listdir(I))
