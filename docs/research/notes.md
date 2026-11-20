@@ -4,6 +4,27 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Change 7: ask the Choice again when Jev is unsure
+
+Stage `exp-vote`, output `out/osm_phase1_v2/exp_vote/`. It uses the 96 Change 5 demo-tile detections, with identical crops and 31 options. Each detection gets up to 5 byte-identical Choice calls; call 1 is Change 5's own stored answer. 376 new calls, about $0.13.
+
+**Adaptive rule:** keep call 1 if its top probability is at least 0.95. Otherwise vote over 3 calls, and over 5 if no class gets 2 of the 3. Ties are broken by summed probability.
+
+| Class decision | Calls | Strict TP | Strict P / R / F1 | Gentle F1 |
+|---|---|---|---|---|
+| 1 call (Change 5) | 96 | 69 | 0.945 / 0.758 / **0.841** | 0.846 |
+| ask again when unsure | 156 | 74 | 0.949 / 0.813 / **0.876** | 0.859 |
+| 3-call vote on all | 288 | 73 | 0.948 / 0.802 / **0.869** | 0.859 |
+| 5-call vote on all | 480 | 75 | 0.949 / 0.824 / **0.882** | 0.865 |
+
+- 29 of 96 first answers were below 0.95; one needed 5 calls.
+- **The adaptive rule recovered 5 correct detections for 60 extra calls (+63%).** The 5-call vote on everything recovered 6, for 384 extra calls. The recovered detections were Doctors answered Pharmacy or none, a Pharmacy answered Hospital, and a Museum and an Artwork answered none.
+- **Repeating never removed a wrong claim.** The 4 wrong claims the strict rule keeps (Memorial, Hotel, Christian place of worship, Charging station) are answered as their claimed class on 4–5 of 5 calls. They are confidently wrong, so they need a different fix (crop, re-centring, or a check of the ground truth).
+- The 3-call vote overruled a confident correct Hotel with two "none" answers. Keeping confident answers avoids this.
+- **Adopt the adaptive rule as the default class decision.** Strict F1 0.841 → 0.876, best so far.
+
+---
+
 ## 2026-11-20: Do Jev's wrong Choice answers look less confident?
 
 Read from cached responses only (offline, no new calls). Top-option probability per answer, 31-row Choice, medical icons:

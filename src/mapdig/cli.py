@@ -20,6 +20,7 @@ STAGES = {
     "choice-check":  ("mapdig.choice_check", "add_args", "run", "Choice among all legend rows per detection, scored by class"),
     "exp-anon":      ("mapdig.exp_anon", "add_args", "run", "legend names vs arbitrary codes on medical classes (change 6)"),
     "exp-repeat":    ("mapdig.exp_repeat", "add_args", "run", "repeat identical Choice calls to measure Jev flakiness"),
+    "exp-vote":      ("mapdig.exp_vote", "add_args", "run", "repeat the Choice when unsure; adaptive vs full votes (change 7)"),
     "runlog":        ("mapdig.runlog", "add_args", "run", "build the run-log page (one tab per run/change)"),
     "pilot-jev":     ("mapdig.pilot", "add_args", "run", "small Jev localisation pilot across magnifications"),
 }

@@ -572,6 +572,53 @@ Choice options: "Doctor / clinic", "Pharmacy",
 </section>
 </div>
 
+<!-- ======================= TAB: CHANGE 7 ======================= -->
+<div class="panel" id="panel-change-7" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c7-meta"></div>
+  <p class="verdict" id="c7-verdict"></p>
+  <div class="stats" id="c7-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>Asking Jev the identical question 30 times showed it is not deterministic: on hard icons it gives the right class about 3 times in 4, and the wrong answers scatter across several classes. Right answers almost always come with a top probability near 1.00, while wrong ones are usually lower (median about 0.8), though about a quarter of wrong answers are still near 1.00. So a low-confidence answer is worth asking again, and a majority vote should pick the right class.</p>
+</section>
+<section>
+  <h2>What changed</h2>
+  <p>Only how many times the Choice question is asked, and how the answers are combined. The detections, crops, 31 legend options, names and prompt are exactly Change 5's. The repeated requests are byte-identical; the first call of each detection is Change 5's own stored answer.</p>
+  <div class="ba">
+    <div><h3>Before<span class="tag">Change 5</span></h3><pre>one Choice call per detection
+class = Jev's pick in that call</pre></div>
+    <div class="after"><h3>After<span class="tag">adaptive, threshold 0.95</span></h3><pre>call 1: if top probability >= 0.95, keep it
+otherwise ask 2 more times (3 answers);
+  class = the one picked at least 2 times
+  no class twice? ask 2 more, vote over 5
+ties broken by summed probability</pre></div>
+  </div>
+  <p class="cap">For comparison, the same detections were also decided by a 3-call and a 5-call majority vote on every detection.</p>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Same tile, same 96 detections from the search loop, same 91 true icons as Change 5.</p>
+  <div class="tablewrap"><table><thead><tr><th>Class decision</th><th class="num">Jev calls</th><th class="num">Cost</th><th class="num">Strict P / R</th><th class="num">Strict F1</th><th class="num">Gentle P / R</th><th class="num">Gentle F1</th></tr></thead><tbody id="c7-table"></tbody></table></div>
+  <h3>Detections whose class decision changed</h3>
+  <p>Each card shows the five answers in order (call 1 is Change 5's answer) and what each method decided.</p>
+  <div class="cards" id="c7-cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))"></div>
+</section>
+<section>
+  <h2>What this tells us</h2>
+  <ul id="c7-tells"></ul>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>One tile, 96 detections: the methods differ by 1 to 6 correct detections, a small sample.</li>
+    <li>The 0.95 threshold was chosen from the medical-icon test, not tuned on this tile; other values weren't tried here.</li>
+    <li>This changes only the class decision. Detections the search loop never made can't be recovered by it.</li>
+  </ul>
+</section>
+</div>
+
 <footer>
   <span>Ground truth: render diff of openstreetmap-carto v5.9.0, OSM snapshot 2026-11-18T21:21:02Z. Jev <code>jev-1.14.0</code>, prompt v1. Legend reader <code>claude-opus-5-5</code>.</span>
   <span>Every model call is cached by the content of its request; all tabs regenerate offline with <code>mapdig runlog</code>.</span>
@@ -843,6 +890,35 @@ ${med.map(c => `  ${c.code} = ${c.name}`).join("\n")}  (hidden from Jev)`;
   const card = f => `<div class="card"><img src="${f.img}" alt=""><div class="row"><span>truth</span><b>${esc(f.truth)}</b></div><div class="row"><span>names</span><b>${esc(f.names)}</b></div><div class="row"><span>codes</span><b>${esc(f.codes)}</b></div></div>`;
   $("c6-flip-n").innerHTML = C.flips.names_wrong.map(card).join(""); $("c6-flip-c").innerHTML = C.flips.codes_wrong.map(card).join("");
   $("c6-lost").textContent = `names: ${fmtC(C.lost.names) || "none"}. codes: ${fmtC(C.lost.codes) || "none"}.`;
+})();
+
+// ---------- change 7 ----------
+(() => {
+  const C = D.c7, S = C.strategies, one = S.single, ad = S.adaptive, v5 = S.vote5;
+  $("c7-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", "stage exp-vote", `${C.api_new_calls} new calls`]);
+  $("c7-verdict").textContent = `Asking again only when Jev was unsure (${C.n_unsure} of ${C.n} detections) recovered ${ad.strict.tp - one.strict.tp} correct detections that the single call had thrown away, for ${ad.calls - one.calls} extra calls. Strict F1 rose from ${fmt(one.strict.f1, 3)} to ${fmt(ad.strict.f1, 3)}, the best so far. A 5-call vote on everything did slightly better (${fmt(v5.strict.f1, 3)}) for 5 times the calls. No method removed any more wrong claims: those are confidently wrong every time.`;
+  $("c7-stats").innerHTML = stat(fmt(one.strict.f1, 3) + " → " + fmt(ad.strict.f1, 3), "strict F1, single → adaptive") +
+    stat(`+${ad.strict.tp - one.strict.tp}`, "correct detections kept") + stat(`${C.n_unsure}/${C.n}`, "answers below 0.95", "asked again") +
+    stat(`${one.calls} → ${ad.calls}`, "Choice calls") + stat(fmt(v5.strict.f1, 3), "strict F1, 5-call vote", `${v5.calls} calls`);
+  const names = { single: "1 call (Change 5)", adaptive: "ask again when unsure", vote3: "3-call vote on all", vote5: "5-call vote on all" };
+  $("c7-table").innerHTML = Object.entries(S).map(([k, v]) => `<tr${k === "adaptive" ? ' class="hl"' : ""}><td>${names[k]}</td><td class="num">${v.calls}</td><td class="num">${usd(v.usd)}</td>
+    <td class="num">${fmt(v.strict.precision)} / ${fmt(v.strict.recall)}</td><td class="num">${fmt(v.strict.f1, 3)}</td><td class="num">${fmt(v.gentle.precision)} / ${fmt(v.gentle.recall)}</td><td class="num">${fmt(v.gentle.f1, 3)}</td></tr>`).join("");
+  const short = c => c === "none" ? "none" : c.replace(" / clinic", "").replace(" / Stolperstein", "");
+  $("c7-cards").innerHTML = C.changed.map(q => { const good = q.match === "TP";
+    const dec = Object.entries(q.decision).map(([k, v]) => { const ok = good ? v === q.gt_label : v !== q.gt_label;
+      return `<div class="row"><span>${names[k]}</span><b style="color:var(${ok ? "--tp" : "--fp"})">${esc(short(v))}</b></div>`; }).join("");
+    return `<div class="card"><div class="why">Loop claimed</div><div class="claim">${esc(q.gt_label)}</div>
+      <div class="why">${good ? "a real icon of this class" : "no such icon here (wrong claim)"}</div><img src="${q.img}" alt="crop">
+      <div class="why">Five answers (top probability)</div>
+      <div class="mono" style="font-size:12px;line-height:1.6">${q.answers.map((x, i) => `${i + 1}. ${esc(short(x.cls))} <span style="color:var(--muted)">${fmt(x.top)}</span>`).join("<br>")}</div>
+      ${dec}</div>`; }).join("");
+  const fps = C.fp_strict.map(f => `${esc(f.label)} (${f.answers.filter(a => a === f.label).length}/5 times)`).join(", ");
+  $("c7-tells").innerHTML = [
+    `<b>The single-call losses were mostly bad luck.</b> Of the correct detections the single call removed, most got the right class on 2–4 of the next 4 calls: Doctors answered "Pharmacy" or "none", a Pharmacy answered "Hospital", a Museum and an Artwork answered "none".`,
+    `<b>Asking again only when unsure captures most of the gain.</b> It needed ${ad.calls - one.calls} extra calls (${Math.round(100 * (ad.calls - one.calls) / one.calls)}% more) against ${v5.calls - one.calls} for a full 5-call vote, and got ${ad.strict.tp - one.strict.tp} of the ${v5.strict.tp - one.strict.tp} extra correct detections.`,
+    `<b>Repeating doesn't fix wrong claims.</b> The ${C.fp_strict.length} wrong claims the strict rule keeps are confirmed as their claimed class almost every time: ${fps}. Those need a different fix, such as a better crop or ground-truth check, not more calls.`,
+    `<b>The 3-call vote can be worse than asking only when unsure</b>: one Hotel answered confidently on call 1 was outvoted by two "none" answers. Keeping confident answers protects them.`
+  ].map(t => `<li>${t}</li>`).join("");
 })();
 
 show(location.hash.slice(1));

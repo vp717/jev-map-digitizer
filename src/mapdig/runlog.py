@@ -276,14 +276,30 @@ def run(a):
           "lost": {m: lost(m) for m in ("names", "codes")}, "loopfp": {m: loopfp(m) for m in ("names", "codes")},
           "manifest": manifest(f"{E5}/exp_anon/manifest.json")}
 
+    # ---------- tab 8: change 7, repeat the class decision when unsure ----------
+    V7 = json.load(open(f"{E5}/exp_vote/summary.json"))
+    changed7 = []
+    for i, q in enumerate(V7["rows"]):
+        if len(set(q["decision"].values())) > 1:
+            changed7.append({**{k: q[k] for k in ("gt_label", "match", "decision", "answers", "calls")},
+                             "img": jpg(open_(f"{E5}/choice_check/crops/{i:02d}.png"), f"c7_crop{i:02d}.jpg", 150)})
+    tops = [q["answers"][0]["top"] for q in V7["rows"]]
+    c7 = {"strategies": V7["strategies"], "threshold": V7["threshold"], "n": V7["n"], "changed": changed7,
+          "n_unsure": sum(q["calls"]["adaptive"] > 1 for q in V7["rows"]),
+          "n_five": sum(q["calls"]["adaptive"] == 5 for q in V7["rows"]),
+          "api_new_calls": V7["api_new_calls"], "manifest": manifest(f"{E5}/exp_vote/manifest.json"),
+          "fp_strict": [{"label": q["gt_label"], "answers": [x["cls"] for x in q["answers"]], "top": q["answers"][0]["top"]}
+                        for q in V7["rows"] if q["match"] == "FP" and q["decision"]["single"] == q["gt_label"]]}
+
     data = {"tabs": [{"id": "run-1", "title": "Run 1 · baseline", "date": "2026-11-20"},
                      {"id": "change-1", "title": "Change 1 · batched screening", "date": "2026-11-20"},
                      {"id": "change-2", "title": "Change 2 · Choice check", "date": "2026-11-20"},
                      {"id": "change-3", "title": "Change 3 · tighter crops", "date": "2026-11-20"},
                      {"id": "change-4", "title": "Change 4 · Fitness vs Dance", "date": "2026-11-20"},
                      {"id": "change-5", "title": "Change 5 · full names + variants", "date": "2026-11-20"},
-                     {"id": "change-6", "title": "Change 6 · names vs codes", "date": "2026-11-20"}],
-            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4, "c5": c5, "c6": c6}
+                     {"id": "change-6", "title": "Change 6 · names vs codes", "date": "2026-11-20"},
+                     {"id": "change-7", "title": "Change 7 · ask again when unsure", "date": "2026-11-20"}],
+            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4, "c5": c5, "c6": c6, "c7": c7}
     tpl = open(os.path.join(os.path.dirname(__file__), "templates", "runlog.html")).read()
     open(os.path.join(O, "index.html"), "w").write(tpl.replace("/*DATA*/null", json.dumps(data, separators=(",", ":"))))
     files = sorted("img/" + f for f in os.listdir(I))
