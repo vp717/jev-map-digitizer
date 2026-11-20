@@ -28,6 +28,8 @@ def add_args(p):
     p.add_argument("--match-px", type=float, default=7)
     p.add_argument("--cache", default="cache/api")
     p.add_argument("--api-mode", default="online", choices=["online", "offline", "refresh"])
+    p.add_argument("--trace-classes", nargs="*", default=[],
+                   help="legend labels whose every Jev call is saved: exact PNG bytes sent, prompt, response")
     p.add_argument("--outdir", required=True)
 
 def run(a):
@@ -81,6 +83,15 @@ def run(a):
     cache = ApiCache(a.cache, a.api_mode)
     jev = Jev(cache)
     tokens = {"calls": 0, "input_tokens": 0}
+    from mapdig.jev import PROMPTS, _symbol_phrase
+    trace = {"screening": {"calls": []}, "loops": {}}
+    tdir = os.path.join(a.outdir, "trace")
+    if a.trace_classes:
+        os.makedirs(tdir, exist_ok=True)
+    def tsave(b, name):   # exact bytes that were sent
+        open(os.path.join(tdir, name), "wb").write(b); return f"trace/{name}"
+    def prompt_text(q, label):
+        return PROMPTS[jev.pv][q].format(symbol=_symbol_phrase(label, "[legend image]", True))
     def account(e):
         tokens["calls"] += 1; tokens["input_tokens"] += e["usage"].get("input_tokens") or 0
 
@@ -98,10 +109,18 @@ def run(a):
     images["screen_input"] = save(screen_img, "02_screen_input.png")
     screen_png = png(screen_img)
     screening = []
+    if a.trace_classes:
+        trace["screening"]["tile_image"] = tsave(screen_png, "screen_tile_x2.png")
     for e in entries:
         leg = legend_png(e, k1)
-        r = jev.present(screen_png, png(leg), e["label"]); account(r)
+        leg_bytes = png(leg)
+        r = jev.present(screen_png, leg_bytes, e["label"]); account(r)
         p = r["response"]["answers"]["present"]["noul"]
+        if a.trace_classes:
+            trace["screening"]["calls"].append({
+                "label": e["label"], "legend_image": tsave(leg_bytes, f"screen_legend_{e['index']:02d}.png"),
+                "prompt_present": prompt_text("present", e["label"]), "request": r["request"],
+                "response": r["response"]["answers"], "usage": r["usage"], "cache_key": r["key"]})
         n_true = sum(t["label"] == e["gt_label"] for t in truth)
         screening.append({"label": e["label"], "gt_label": e["gt_label"], "p_present": p, "n_true": n_true,
                           "screened_in": p >= a.screen_threshold})
@@ -120,10 +139,16 @@ def run(a):
         removed = np.zeros((T, T), bool)
         leg_png = png(legend_png(e, k2))
         n_calls_before = tokens["calls"]
+        traced = e["label"] in a.trace_classes
+        if traced:
+            trace["loops"][e["label"]] = {"legend_image": tsave(leg_png, f"loop_legend_{e['index']:02d}.png"),
+                                          "prompt_present": prompt_text("present", e["label"]),
+                                          "prompt_where": prompt_text("where", e["label"]), "calls": []}
         for (sx, sy) in subs:
             for pas in range(1, a.max_passes + 1):
                 sub = Image.fromarray(work[sy:sy + S, sx:sx + S]).resize((S * k2, S * k2), Image.LANCZOS)
-                r = jev.present_and_where(png(sub), leg_png, e["label"]); account(r)
+                sub_bytes = png(sub)
+                r = jev.present_and_where(sub_bytes, leg_png, e["label"]); account(r)
                 ans = r["response"]["answers"]
                 p, b, conf = ans["present"]["noul"], ans["where"]["box"], ans["where"]["confidence"]
                 bx0, bx1 = sx + b["left"] * S, sx + b["right"] * S
@@ -157,6 +182,12 @@ def run(a):
                                    "before": save(fr.resize((400, 400)), f"f{n:03d}_a.png"),
                                    "after": save(after.resize((400, 400)), f"f{n:03d}_b.png")})
                 loop_log.append(step)
+                if traced:
+                    n = len(trace["loops"][e["label"]]["calls"])
+                    trace["loops"][e["label"]]["calls"].append({
+                        **step, "image": tsave(sub_bytes, f"loop_{e['index']:02d}_{n:03d}.png"),
+                        "map_px_origin": [tx + sx, ty + sy], "request": r["request"],
+                        "response": ans, "usage": r["usage"], "cache_key": r["key"], "n_pred": len(preds)})
                 if step["action"].startswith("stop"):
                     break
         s1["stage2_calls"] = tokens["calls"] - n_calls_before
@@ -245,6 +276,19 @@ def run(a):
         "images": images,
     }
     json.dump(report, open(os.path.join(a.outdir, "report.json"), "w"), indent=1, default=float)
+    if a.trace_classes:
+        for lab, L in trace["loops"].items():   # attach the final verdict of each detection
+            for c in L["calls"]:
+                if c["action"].startswith("detect"):
+                    p_ = preds[c["n_pred"] - 1]
+                    hit = next((q for q in merged if q is p_), None)
+                    c["verdict"] = hit["match"] if hit else "merged duplicate"
+                    near = sorted((float(np.hypot(p_["x"] - t["x"], p_["y"] - t["y"])), t["label"]) for t in truth)
+                    c["nearest_truth"] = {"label": near[0][1], "dist_px": round(near[0][0], 1)} if near else None
+        trace["truth_in_tile"] = {lab: [t for t in truth if t["label"] == lab] for lab in trace["loops"]}
+        trace["missed"] = {lab: [t for t in truth if t["label"] == lab and t["match"] == "FN"] for lab in trace["loops"]}
+        trace["tile"] = {"x": tx, "y": ty, "px": T, "sub_px": S, "sub_k": k2, "screen_k": k1}
+        json.dump(trace, open(os.path.join(a.outdir, "trace.json"), "w"), indent=1, default=float)
     m_.extra.update({"metrics": report["metrics"], "cost": report["cost"]})
     m_.write(os.path.join(a.outdir, "manifest.json"), outputs=["report.json", "predictions.gpkg", "img/"])
     print(json.dumps({"tile": report["tile"], "metrics": {k_: v for k_, v in report["metrics"].items() if k_ != "per_class"},

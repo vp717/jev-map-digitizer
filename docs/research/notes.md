@@ -4,6 +4,18 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Call-level trace of the single-tile run
+
+**What.** Every call for Doctor, Statue and Parking (92 loop calls), all 25 screening calls and the Opus call were traced. `mapdig demo-tile --trace-classes ... --api-mode offline` writes the exact PNG bytes sent, the prompt text and the raw answers to `out/osm_phase1/demo_tile_trace/`.
+
+**Verification.** The replay ran offline: 569 cache hits, 0 calls. The SHA-256 of every rebuilt image matched its cached request (122 of 122, including the Opus input). So the traced images are exactly what the models saw.
+
+**Observations.**
+- **Parking misses are "not present" answers, not bad boxes.** Every sub-tile containing a missed pale-blue Parking icon got P(present) 0.16–0.31 on its first pass. **Hypothesis:** prompt v1 says *"Only count symbols drawn exactly like it (same shape and colour)"*, which tells Jev to reject colour variants. Next, test a prompt without "and colour", or one that names colour variants as the same class, on these sub-tiles. It costs cents and the cache keeps both versions.
+- The Doctor sequence shows the loop working as designed: each detection is followed by a call on the inpainted sub-tile that returns "not present".
+
+---
+
 ## 2026-11-20: First end-to-end run on one tile (Opus legend + two-stage Jev loop)
 
 **Setup.**
