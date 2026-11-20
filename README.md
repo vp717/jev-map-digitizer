@@ -2,7 +2,7 @@
 
 Legend-driven point-symbol detection on maps with TypeSafe Jev, compared against trained detectors.
 Design: [docs/design.md](docs/design.md). Pipeline spec: [docs/pipeline-spec.md](docs/pipeline-spec.md).
-Literature review: [docs/research/](docs/research/).
+Literature review: [docs/research/](docs/research/). Running lab notebook: [docs/research/notes.md](docs/research/notes.md).
 
 ## Reproduce
 
