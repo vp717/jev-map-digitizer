@@ -291,6 +291,48 @@ def run(a):
           "fp_strict": [{"label": q["gt_label"], "answers": [x["cls"] for x in q["answers"]], "top": q["answers"][0]["top"]}
                         for q in V7["rows"] if q["match"] == "FP" and q["decision"]["single"] == q["gt_label"]]}
 
+    # ---------- tab 9: change 8, colour-mask the search images to each symbol's palette ----------
+    from mapdig.palette import mask_image, effective_palette
+    PAL = json.load(open(f"{E5}/palette/palette.json")); palc = {x["label"]: x["colours"] for x in PAL["entries"]}
+    sd5 = f"{E5}/legend_read/z17_s1"
+    R8 = {m: json.load(open(f)) for m, f in (("none", f"{E5}/demo_tile/report.json"), ("core", f"{E5}/demo_tile_mask_core/report.json"),
+                                             ("unmix", f"{E5}/demo_tile_mask_unmix/report.json"))}
+    V8 = {m: json.load(open(f)) for m, f in (("none", f"{E5}/exp_vote/summary.json"), ("core", f"{E5}/exp_vote_mask_core/summary.json"),
+                                             ("unmix", f"{E5}/exp_vote_mask_unmix/summary.json"))}
+    tx8, ty8 = R8["none"]["tile"]["x"], R8["none"]["tile"]["y"]
+    tile8 = np.moveaxis(src5.read((1, 2, 3), window=Window(tx8, ty8, 640, 640)), 0, -1)
+    masked_tiles = [{"label": "original tile", "img": jpg(Image.fromarray(tile8), "c8_tile.jpg", 400)}]
+    for lab in ("Doctor / clinic", "Supermarket", "Traffic signals"):
+        masked_tiles.append({"label": f"masked for {lab}", "img": jpg(Image.fromarray(mask_image(tile8, palc[lab], 12)), f"c8_tile_{lab[:5].strip().lower()}.jpg", 400)})
+    leg_rows = []
+    for e in [x for x in json.load(open(f"{sd5}/symbols.json"))["entries"] if x["crop"]]:
+        leg = np.asarray(Image.open(f"{sd5}/{e['crop']}").convert("RGB"))
+        leg = np.pad(leg, ((3, 3), (3, 3), (0, 0)), constant_values=0); leg[:3] = leg[-3:] = leg[:, :3] = leg[:, -3:] = (242, 239, 233)
+        pe = next(x for x in PAL["entries"] if x["label"] == e["label"])
+        leg_rows.append({"label": e["label"], "colours": pe["colours"], "kept": effective_palette(pe["colours"], 12),
+                         "true": pe["true_fill_as_drawn"], "de": pe["delta_e_nearest"],
+                         "orig": pngf(Image.fromarray(leg), f"c8_leg{e['index']:02d}_o.png", 6),
+                         "core": pngf(Image.fromarray(mask_image(leg, pe["colours"], 12, edges=False)), f"c8_leg{e['index']:02d}_c.png", 6),
+                         "unmix": pngf(Image.fromarray(mask_image(leg, pe["colours"], 12)), f"c8_leg{e['index']:02d}_u.png", 6)})
+    def screen_missed(rep):   # classes on the tile for which no legend row screened in
+        by = collections.defaultdict(list)
+        for x in rep["screening"]:
+            by[x["gt_label"]].append(x)
+        return [c for c, xs in by.items() if xs[0]["n_true"] > 0 and not any(x["screened_in"] for x in xs)]
+    variants = {}
+    for m in R8:
+        variants[m] = {"loop": {k: R8[m]["metrics"][k] for k in ("tp", "fp", "fn", "precision", "recall", "f1")},
+                       "missed": screen_missed(R8[m]), "loop_calls": R8[m]["cost"]["jev_calls"], "loop_usd": R8[m]["cost"]["jev_usd"],
+                       "single": V8[m]["strategies"]["single"], "adaptive": V8[m]["strategies"]["adaptive"], "vote5": V8[m]["strategies"]["vote5"]}
+    per8 = []
+    for c, a in R8["none"]["metrics"]["per_class"].items():
+        b, d = R8["core"]["metrics"]["per_class"].get(c, {}), R8["unmix"]["metrics"]["per_class"].get(c, {})
+        if not (a == b == d):
+            per8.append({"cls": c, "true": a["true"], "none": [a["tp"], a["pred"]], "core": [b.get("tp", 0), b.get("pred", 0)], "unmix": [d.get("tp", 0), d.get("pred", 0)]})
+    c8 = {"variants": variants, "per_class": per8, "tiles": masked_tiles, "legend": leg_rows, "palette_cost": PAL["cost_usd"],
+          "new_calls": sum(R8[m]["cost"]["api_new_calls"] + V8[m]["api_new_calls"] for m in ("core", "unmix")),
+          "manifest": manifest(f"{E5}/demo_tile_mask_unmix/manifest.json")}
+
     data = {"tabs": [{"id": "run-1", "title": "Run 1 · baseline", "date": "2026-11-20"},
                      {"id": "change-1", "title": "Change 1 · batched screening", "date": "2026-11-20"},
                      {"id": "change-2", "title": "Change 2 · Choice check", "date": "2026-11-20"},
@@ -298,8 +340,9 @@ def run(a):
                      {"id": "change-4", "title": "Change 4 · Fitness vs Dance", "date": "2026-11-20"},
                      {"id": "change-5", "title": "Change 5 · full names + variants", "date": "2026-11-20"},
                      {"id": "change-6", "title": "Change 6 · names vs codes", "date": "2026-11-20"},
-                     {"id": "change-7", "title": "Change 7 · ask again when unsure", "date": "2026-11-20"}],
-            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4, "c5": c5, "c6": c6, "c7": c7}
+                     {"id": "change-7", "title": "Change 7 · ask again when unsure", "date": "2026-11-20"},
+                     {"id": "change-8", "title": "Change 8 · colour mask", "date": "2026-11-20"}],
+            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4, "c5": c5, "c6": c6, "c7": c7, "c8": c8}
     tpl = open(os.path.join(os.path.dirname(__file__), "templates", "runlog.html")).read()
     open(os.path.join(O, "index.html"), "w").write(tpl.replace("/*DATA*/null", json.dumps(data, separators=(",", ":"))))
     files = sorted("img/" + f for f in os.listdir(I))

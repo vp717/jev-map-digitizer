@@ -619,6 +619,72 @@ ties broken by summed probability</pre></div>
 </section>
 </div>
 
+<!-- ======================= TAB: CHANGE 8 ======================= -->
+<div class="panel" id="panel-change-8" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c8-meta"></div>
+  <p class="verdict" id="c8-verdict"></p>
+  <div class="stats" id="c8-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>Map symbols are drawn in a few colours, while most of the map (roads, buildings, land) is drawn in others. If Jev only sees the pixels that could belong to the symbol it is looking for, the rest of the map can't distract it. The legend already gives us the symbols, so it can also give us their colours.</p>
+</section>
+<section>
+  <h2>What changed</h2>
+  <div class="ba">
+    <div><h3>Before<span class="tag">Change 5 / 7</span></h3><pre>screening:  whole tile, as rendered
+search:     sub-tiles, as rendered
+legend:     symbol on the legend's background
+Choice:     unchanged crop</pre></div>
+    <div class="after"><h3>After<span class="tag">per legend row</span></h3><pre>Opus lists the minimal colour palette of each
+  legend symbol (any number of colours)
+screening, search and the legend excerpt see the
+  image masked to that row's palette: pixels within
+  delta E 12 of a palette colour are kept, the rest
+  painted white
+Choice:     unchanged crop (not masked)</pre></div>
+  </div>
+  <h3>Two rules the first tests forced</h3>
+  <ul>
+    <li><b>Palette colours near the paint colour are dropped from the keep list.</b> Opus listed white for the red crosses and Traffic signals. Since masked-out pixels are painted white anyway, those parts still look right, but keeping white let every road through (up to 80% of the tile).</li>
+    <li><b>Blended edge pixels must be kept too ("unmix").</b> Thin-line symbols are mostly pixels blended with the background. Keeping only near-exact palette colours broke the Supermarket cart into fragments. The unmix mask also keeps a pixel when it lies on the blend between a palette colour and the local background (median of a 15 px window), with at least 20% palette share, next to the symbol.</li>
+  </ul>
+  <h3>What Jev sees</h3>
+  <div class="tiles" id="c8-tiles"></div>
+</section>
+<section>
+  <h2>The palettes Opus read</h2>
+  <p id="c8-pal-note"></p>
+  <div class="tablewrap"><table><thead><tr><th>Legend row</th><th>Opus palette</th><th>Kept</th><th>Legend symbol</th><th>Masked (core)</th><th>Masked (unmix)</th></tr></thead><tbody id="c8-pal"></tbody></table></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Same tile, same 91 true icons, same Choice check and "ask again when unsure" rule as Change 7.</p>
+  <div class="tablewrap"><table><thead><tr><th>Step</th><th>Measure</th><th class="num">no mask (Change 7)</th><th class="num">core mask</th><th class="num">unmix mask</th></tr></thead><tbody id="c8-table"></tbody></table></div>
+  <h3>Classes that changed (found / detections)</h3>
+  <div class="tablewrap"><table><thead><tr><th>Class</th><th class="num">On tile</th><th class="num">no mask</th><th class="num">core mask</th><th class="num">unmix mask</th></tr></thead><tbody id="c8-per"></tbody></table></div>
+</section>
+<section>
+  <h2>What this tells us</h2>
+  <ul>
+    <li><b>Masking fixes screening.</b> Unmasked, screening missed Bust, Shelter and Dance venue on this tile. With the unmix mask it missed only Shelter. Bust and both Dance icons were found without forcing.</li>
+    <li><b>Masking removes clutter-driven false claims.</b> Search-loop wrong claims fell from 19 to 14 (Statue 5 → 1, Pharmacy 2 → 0, Fitness 2 → 1), though a new wrong Doctor appeared.</li>
+    <li><b>But the overall score doesn't improve on this tile.</b> Gains are offset by losses in two dense classes: Memorial / Stolperstein (20 → 17) and Traffic signals (11 → 7). After the class decision, F1 is 0.843 against 0.876 unmasked.</li>
+    <li><b>Anti-aliasing is essential.</b> The core-colour mask lost every Supermarket and half the Traffic signals. Any mask has to keep blended edge pixels, which will matter even more on scans.</li>
+  </ul>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>One tile; the differences are a few icons per class, close to the noise level measured in Change 7.</li>
+    <li>Tolerance (12), blend share (20%) and window (15 px) were set from legend checks and a look at this tile, not tuned on separate tiles.</li>
+    <li>The faded "restricted access" rows keep pale colours close to the land colours. Faded Drinking water keeps only about a quarter of each icon. There are no faded icons on this tile, so this run doesn't test them.</li>
+    <li>Why Memorials and Traffic signals got worse hasn't been looked into yet. Both sit on dense backgrounds (Stolpersteine in clusters, signals on grey roads).</li>
+  </ul>
+</section>
+</div>
+
 <footer>
   <span>Ground truth: render diff of openstreetmap-carto v5.9.0, OSM snapshot 2026-11-18T21:21:02Z. Jev <code>jev-1.14.0</code>, prompt v1. Legend reader <code>claude-opus-5-5</code>.</span>
   <span>Every model call is cached by the content of its request; all tabs regenerate offline with <code>mapdig runlog</code>.</span>
@@ -919,6 +985,29 @@ ${med.map(c => `  ${c.code} = ${c.name}`).join("\n")}  (hidden from Jev)`;
     `<b>Repeating doesn't fix wrong claims.</b> The ${C.fp_strict.length} wrong claims the strict rule keeps are confirmed as their claimed class almost every time: ${fps}. Those need a different fix, such as a better crop or ground-truth check, not more calls.`,
     `<b>The 3-call vote can be worse than asking only when unsure</b>: one Hotel answered confidently on call 1 was outvoted by two "none" answers. Keeping confident answers protects them.`
   ].map(t => `<li>${t}</li>`).join("");
+})();
+
+// ---------- change 8 ----------
+(() => {
+  const C = D.c8, V = C.variants, n = V.none, u = V.unmix, c = V.core;
+  $("c8-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", "stages read-palette, demo-tile --mask-palette", `${C.new_calls} new calls`]);
+  $("c8-verdict").textContent = `Masking each search image to the symbol's own colours made screening find classes it always missed (Bust, Dance venue) and cut wrong claims in the search loop from ${n.loop.fp} to ${u.loop.fp}. But it also lost some Memorials and Traffic signals, so overall it ties with no mask in the search loop (F1 ${fmt(n.loop.f1, 3)} vs ${fmt(u.loop.f1, 3)}) and is a little behind after the class decision (${fmt(n.adaptive.strict.f1, 3)} vs ${fmt(u.adaptive.strict.f1, 3)}). The mask only works once blended edge pixels are kept.`;
+  $("c8-stats").innerHTML = stat(`${n.missed.length} → ${u.missed.length}`, "classes screening missed") + stat(`${n.loop.fp} → ${u.loop.fp}`, "search-loop wrong claims") +
+    stat(fmt(n.loop.f1, 3) + " → " + fmt(u.loop.f1, 3), "search-loop F1") + stat(fmt(n.adaptive.strict.f1, 3) + " → " + fmt(u.adaptive.strict.f1, 3), "F1 after class decision") + stat(usd(C.palette_cost), "Opus palette read");
+  $("c8-tiles").innerHTML = C.tiles.map(t => `<div class="tilecard"><img src="${t.img}" alt="${esc(t.label)}"><b>${esc(t.label)}</b></div>`).join("");
+  const multi = C.legend.filter(r => r.colours.length > 1).length;
+  $("c8-pal-note").textContent = `Opus returned one colour for ${C.legend.length - multi} symbols and two for ${multi}. Every symbol's true fill colour was in its palette (largest miss: Traffic signals, #666666 against the true #545454, delta E 7.4, within the tolerance). Cost ${usd(C.palette_cost)}.`;
+  const sw = h => `<span style="display:inline-block;width:14px;height:14px;border:1px solid var(--rule);background:${h};vertical-align:-2px;margin-right:4px"></span><span class="mono">${h}</span>`;
+  $("c8-pal").innerHTML = C.legend.map(r => `<tr><td>${esc(r.label)}</td><td>${r.colours.map(sw).join(" ")}</td><td>${r.kept.length < r.colours.length ? `${r.kept.length} of ${r.colours.length}` : "all"}</td>
+    <td><img class="pix" src="${r.orig}" alt="" style="height:60px"></td><td><img class="pix" src="${r.core}" alt="" style="height:60px"></td><td><img class="pix" src="${r.unmix}" alt="" style="height:60px"></td></tr>`).join("");
+  const row = (a, b, f) => `<tr><td>${a}</td><td>${b}</td>${["none", "core", "unmix"].map(m => `<td class="num">${f(V[m])}</td>`).join("")}</tr>`;
+  $("c8-table").innerHTML = [
+    row("Screening", "classes on tile missed", v => v.missed.length ? v.missed.join(", ") : "none"),
+    row("Search loop", "found / wrong claims", v => `${v.loop.tp} / ${v.loop.fp}`), row("", "precision / recall", v => `${fmt(v.loop.precision)} / ${fmt(v.loop.recall)}`), row("", "F1", v => fmt(v.loop.f1, 3)),
+    row("Class decision, 1 call", "F1 (strict)", v => fmt(v.single.strict.f1, 3)),
+    row("Ask again when unsure", "precision / recall", v => `${fmt(v.adaptive.strict.precision)} / ${fmt(v.adaptive.strict.recall)}`), row("", "F1 (strict)", v => fmt(v.adaptive.strict.f1, 3)),
+    row("Cost", "search loop", v => `${v.loop_calls} calls, ${usd(v.loop_usd)}`)].join("");
+  $("c8-per").innerHTML = C.per_class.map(r => `<tr><td>${esc(r.cls)}</td><td class="num">${r.true}</td>${["none", "core", "unmix"].map(m => `<td class="num">${r[m][0]} / ${r[m][1]}</td>`).join("")}</tr>`).join("");
 })();
 
 show(location.hash.slice(1));

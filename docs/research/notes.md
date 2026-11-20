@@ -4,6 +4,37 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Change 8: colour-mask the search images to each symbol's palette
+
+**Idea (user).** Opus reads the minimal colour palette of each legend symbol. Before Jev searches for that symbol, every other pixel is whited out.
+
+**Setup.**
+- Stage `read-palette`: Opus 5.5, all 31 legend crops (×8, nearest-neighbour), $0.038. It returned one colour for 24 rows and two for 7 (white for the crosses and Traffic signals; light blue for Guest house and Chalet). Every true fill colour was in its palette; the largest miss was Traffic signals at #666666 against the true #545454, ΔE 7.4.
+- `palette.mask_image`: keep pixels within ΔE 12 (CIE76) of a palette colour, paint the rest white. Applied per legend row in `demo-tile --mask-palette` to the screening tile, the search sub-tiles and the legend excerpt. The Choice crop stays unmasked.
+- Two rules were needed:
+  1. **Drop palette colours within tolerance of the paint colour.** Keeping white let the roads through, up to 80% of the tile kept. After the fix, the medical masks keep 0.26% of the tile and all of each icon.
+  2. **Keep anti-aliased edges ("unmix").** Without this, thin-line symbols break up: only 32 of 101 Supermarket cart pixels survived. A pixel is also kept if it lies on the blend line between a palette colour and the local background (median of a 15 px window), with palette share ≥ 0.2, within 18 RGB units of that line, and within 2 px of a core pixel.
+- My first free check (`palette-check`) missed problem 2. It compared masked icons against a *masked* legend, so both lost the same pixels. Measure against the unmasked legend instead.
+- Same tile, same Choice and adaptive class decision as Change 7. Cost about $0.59 for both masked runs together.
+
+| Search images | Loop found / wrong | Loop P / R / F1 | F1 after adaptive Choice |
+|---|---|---|---|
+| no mask (Change 7) | 77 / 19 | 0.802 / 0.846 / **0.824** | 0.876 |
+| core-colour mask | 70 / 12 | 0.854 / 0.769 / **0.809** | 0.81 |
+| unmix mask | 73 / 14 | 0.839 / 0.802 / **0.82** | 0.843 |
+
+**Findings.**
+- **Screening improves.** Classes on the tile that were missed: no mask had Bust, Shelter and Dance venue; unmix had only Shelter. Bust and Dance were found unforced. (Screening's per-row `n_true` counts the whole class, so the faded rows look "missed" but have no icons on the tile.)
+- **Fewer wrong claims in the loop: 19 → 14.** Statue 5 → 1, Pharmacy 2 → 0.
+- **Losses in dense classes:** Memorial / Stolperstein 20 → 17, Traffic signals 11 → 7. The cause hasn't been examined yet.
+- **Net effect is a tie in the loop** (0.824 vs 0.820) and slightly worse after the class decision (0.876 vs 0.843). Both differences are within single-tile noise.
+- **Same-colour symbols of other classes survive the mask.** On the Supermarket mask, purple shop dots and the purple bag icon remain. This is the same kind of look-alike problem as Fitness/Dance.
+- The faded "restricted access" palettes are pale and close to the land colours: faded Drinking water keeps only about 25% of each icon. That's untested here because there are no faded icons on the tile.
+
+**Next.** Look at why the Memorial and Traffic-signal losses happen. Try the mask for screening only, which is where it clearly helps, and keep unmasked images for the loop.
+
+---
+
 ## 2026-11-20: Change 7: ask the Choice again when Jev is unsure
 
 Stage `exp-vote`, output `out/osm_phase1_v2/exp_vote/`. It uses the 96 Change 5 demo-tile detections, with identical crops and 31 options. Each detection gets up to 5 byte-identical Choice calls; call 1 is Change 5's own stored answer. 376 new calls, about $0.13.

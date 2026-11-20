@@ -17,6 +17,7 @@ PBF = "data/" + os.path.basename(config["data"]["extract_url"])
 DB_STAMP = "out/_shared/db_import.json"
 
 wildcard_constraints:
+    mode="core|unmix",
     zoom=r"\d+",
     scale=r"\d+(\.\d+)?",
     area=r"[a-z0-9_]+",
@@ -271,6 +272,55 @@ rule exp_vote:
         "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
 
 
+# Change 8: colour-mask the search images to each legend row's palette (osm_phase1_v2 config)
+PAL_TOL = 12
+rule read_palette:
+    input:
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        legend_gt=f"{OUT}/legend/z{DT['zoom']}_s{DT['scale']}/sheet_gt.json",
+    output: f"{OUT}/palette/palette.json"
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/read_palette.log"
+    shell: "{ML} mapdig read-palette --symbols {input.symbols} --legend-gt {input.legend_gt} {params.api} --out {output} > {log} 2>&1"
+
+rule palette_check:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        gt=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/gt.gpkg",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        palette=f"{OUT}/palette/palette.json",
+    output: f"{OUT}/palette/check/check.json"
+    log: f"{OUT}/logs/palette_check.log"
+    shell:
+        "{ML} mapdig palette-check --map {input.map} --gt {input.gt} --symbols {input.symbols} --palette {input.palette} "
+        "--tile {DT[tile][0]} {DT[tile][1]} --tols 8 10 12 15 20 --outdir $(dirname {output}) > {log} 2>&1"
+
+rule demo_tile_mask:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        gt=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/gt.gpkg",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        palette=f"{OUT}/palette/palette.json",
+    output: report=f"{OUT}/demo_tile_mask_{{mode}}/report.json"
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/demo_tile_mask_{{mode}}.log"
+    shell:
+        "{ML} mapdig demo-tile --map {input.map} --gt {input.gt} --symbols {input.symbols} --tile {DT[tile][0]} {DT[tile][1]} "
+        "--mask-palette {input.palette} --mask-mode {wildcards.mode} --mask-tol {PAL_TOL} {params.api} --outdir $(dirname {output.report}) > {log} 2>&1"
+
+rule exp_vote_mask:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        report=f"{OUT}/demo_tile_mask_{{mode}}/report.json",
+    output: summary=f"{OUT}/exp_vote_mask_{{mode}}/summary.json"
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/exp_vote_mask_{{mode}}.log"
+    shell:
+        "{ML} mapdig exp-vote --map {input.map} --symbols {input.symbols} --demo-report {input.report} --threshold 0.95 "
+        "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
+
+
 # Run-log page (one tab per run / method change); rebuild after any experiment.
 rule runlog:
     input:
@@ -281,6 +331,9 @@ rule runlog:
         "out/osm_phase1_v2/choice_check/summary.json",
         "out/osm_phase1_v2/exp_anon/summary.json",
         "out/osm_phase1_v2/exp_vote/summary.json",
+        "out/osm_phase1_v2/exp_vote_mask_core/summary.json",
+        "out/osm_phase1_v2/exp_vote_mask_unmix/summary.json",
+        "out/osm_phase1_v2/palette/palette.json",
         "src/mapdig/templates/runlog.html",
     output: "out/runlog/index.html"
     shell: "{ML} mapdig runlog --exp {OUT} --out out/runlog"

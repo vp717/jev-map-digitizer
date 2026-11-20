@@ -28,6 +28,11 @@ def add_args(p):
     p.add_argument("--match-px", type=float, default=7)
     p.add_argument("--cache", default="cache/api")
     p.add_argument("--api-mode", default="online", choices=["online", "offline", "refresh"])
+    p.add_argument("--mask-palette", default=None,
+                   help="palette.json from read-palette: show Jev the image masked to each legend row's colours (change 8)")
+    p.add_argument("--mask-mode", choices=["core", "unmix"], default="unmix",
+                   help="core: palette colours only; unmix: also anti-aliased edge pixels (change 8)")
+    p.add_argument("--mask-tol", type=float, default=12.0, help="colour tolerance (CIE76 delta E) for --mask-palette")
     p.add_argument("--label-mode", choices=["names", "codes"], default="names",
                    help="codes: show Jev arbitrary 'symbol NN' codes instead of legend names (change 6)")
     p.add_argument("--only-classes", nargs="*", default=[],
@@ -112,11 +117,21 @@ def run(a):
     def account(e):
         tokens["calls"] += 1; tokens["input_tokens"] += e["usage"].get("input_tokens") or 0
 
+    pal = None
+    if a.mask_palette:
+        from mapdig.palette import mask_image
+        pal = {x["label"]: x["colours"] for x in json.load(open(a.mask_palette))["entries"]}
+    def masked(arr, e):   # the image Jev sees for legend row e (unchanged without --mask-palette)
+        return mask_image(arr, pal[e.get("name", e["label"])], a.mask_tol, edges=a.mask_mode == "unmix") if pal else arr
+
     def legend_png(e, k):
         icon = Image.open(os.path.join(sym_dir, e["crop"])).convert("RGB")
+        if pal:
+            icon = Image.fromarray(masked(np.asarray(icon), e))
         icon = icon.resize((icon.width * k, icon.height * k), Image.LANCZOS)
         side = max(280, icon.width + 8, icon.height + 8)
-        c = Image.new("RGB", (side, side), land); c.paste(icon, ((side - icon.width) // 2, (side - icon.height) // 2))
+        c = Image.new("RGB", (side, side), (255, 255, 255) if pal else land)
+        c.paste(icon, ((side - icon.width) // 2, (side - icon.height) // 2))
         return c
 
     # 2. stage 1 screening
@@ -131,6 +146,10 @@ def run(a):
     for e in entries:
         leg = legend_png(e, k1)
         leg_bytes = png(leg)
+        if pal:
+            screen_png = png(Image.fromarray(masked(tile, e)).resize((T * k1, T * k1), Image.LANCZOS))
+            if e["index"] in (13, 27):
+                save(Image.open(io.BytesIO(screen_png)), f"02_screen_masked_{e['index']:02d}.png")
         r = jev.present(screen_png, leg_bytes, e["label"]); account(r)
         p = r["response"]["answers"]["present"]["noul"]
         if a.trace_classes:
@@ -153,7 +172,7 @@ def run(a):
     for e, s1 in zip(entries, screening):
         if not s1["screened_in"]:
             continue
-        work = tile.copy()
+        work = masked(tile, e).copy()
         removed = np.zeros((T, T), bool)
         leg_png = png(legend_png(e, k2))
         n_calls_before = tokens["calls"]
