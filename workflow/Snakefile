@@ -217,6 +217,19 @@ rule exp_dance:
         "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
 
 
+rule choice_check:
+    input:
+        map=f"{OUT}/maps/{DT['area']}/z{DT['zoom']}_s{DT['scale']}/map.tif",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+        report=f"{OUT}/demo_tile/report.json",
+    output: summary=f"{OUT}/choice_check/summary.json"
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/choice_check.log"
+    shell:
+        "{ML} mapdig choice-check --map {input.map} --symbols {input.symbols} --demo-report {input.report} "
+        "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
+
+
 # Run-log page (one tab per run / method change); rebuild after any experiment.
 rule runlog:
     input:
@@ -224,6 +237,7 @@ rule runlog:
         f"{OUT}/exp_multiimage/summary.json",
         f"{OUT}/exp_crop/summary.json",
         "out/osm_phase1_dance/exp_dance/summary.json",
+        "out/osm_phase1_v2/choice_check/summary.json",
         "src/mapdig/templates/runlog.html",
     output: "out/runlog/index.html"
     shell: "{ML} mapdig runlog --exp {OUT} --out out/runlog"

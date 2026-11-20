@@ -1,27 +1,32 @@
-file,label,group
-symbols/historic/memorial.svg,Memorial / Stolperstein,brown
-symbols/historic/statue.svg,Statue,brown
-symbols/historic/bust.svg,Bust,brown
-symbols/tourism/artwork.svg,Artwork,brown
-symbols/tourism/museum.svg,Museum,brown
-symbols/tourism/viewpoint.svg,Viewpoint,brown
-symbols/amenity/shelter.svg,Shelter,other-666666
-symbols/tourism/picnic.svg,Picnic site / table,green
-symbols/tourism/hotel.svg,Hotel,blue
-symbols/tourism/guest_house.svg,Guest house,blue
-symbols/tourism/chalet.svg,Chalet,blue
-symbols/amenity/doctors.svg,Doctor / clinic,red
-symbols/amenity/pharmacy.svg,Pharmacy,red
-symbols/amenity/hospital.svg,Hospital,red
-symbols/amenity/parking.svg,Parking,blue
-symbols/highway/bus_stop.svg,Bus stop,blue
-symbols/amenity/rental_bicycle.svg,Bicycle rental,blue
-symbols/amenity/charging_station.svg,Charging station,blue
-symbols/amenity/taxi.svg,Taxi rank,blue
-symbols/leisure/playground.svg,Playground,green
-symbols/leisure/fitness.svg,Fitness centre / station,green
-symbols/religion/christian.svg,Christian place of worship,other-000000
-symbols/highway/traffic_light.svg,Traffic signals,other-545454
-symbols/amenity/drinking_water.svg,Drinking water,brown
-symbols/shop/supermarket.svg,Supermarket,other-ac39ac
-symbols/leisure/dance.svg,Dance venue,green
+file,label,group,appearance,class_label
+symbols/historic/memorial.svg,Memorial / Stolperstein,brown,,Memorial / Stolperstein
+symbols/historic/statue.svg,Statue,brown,,Statue
+symbols/historic/bust.svg,Bust,brown,,Bust
+symbols/tourism/artwork.svg,Artwork,brown,,Artwork
+symbols/tourism/museum.svg,Museum,brown,,Museum
+symbols/tourism/viewpoint.svg,Viewpoint,brown,,Viewpoint
+symbols/amenity/shelter.svg,Shelter,other-666666,,Shelter
+symbols/tourism/picnic.svg,Picnic site,green,#0c8416,Picnic site / table
+symbols/tourism/picnic.svg,Picnic table,green,#666666,Picnic site / table
+symbols/tourism/hotel.svg,Hotel,blue,,Hotel
+symbols/tourism/guest_house.svg,Guest house,blue,,Guest house
+symbols/tourism/chalet.svg,Chalet,blue,,Chalet
+symbols/amenity/doctors.svg,Doctor / clinic,red,,Doctor / clinic
+symbols/amenity/pharmacy.svg,Pharmacy,red,,Pharmacy
+symbols/amenity/hospital.svg,Hospital,red,,Hospital
+symbols/amenity/parking.svg,Parking,blue,,Parking
+symbols/amenity/parking.svg,"Parking, restricted access",blue,#0092da@0.33,Parking
+symbols/highway/bus_stop.svg,Bus stop,blue,,Bus stop
+symbols/amenity/rental_bicycle.svg,Bicycle rental,blue,,Bicycle rental
+symbols/amenity/charging_station.svg,Charging station,blue,,Charging station
+symbols/amenity/charging_station.svg,"Charging station, restricted access",blue,#0092da@0.33,Charging station
+symbols/amenity/taxi.svg,Taxi rank,blue,,Taxi rank
+symbols/leisure/playground.svg,Playground,green,,Playground
+symbols/leisure/playground.svg,"Playground, restricted access",green,#0c8416@0.33,Playground
+symbols/leisure/fitness.svg,Fitness centre / station,green,,Fitness centre / station
+symbols/religion/christian.svg,Christian place of worship,other-000000,,Christian place of worship
+symbols/highway/traffic_light.svg,Traffic signals,other-545454,,Traffic signals
+symbols/amenity/drinking_water.svg,Drinking water,brown,,Drinking water
+symbols/amenity/drinking_water.svg,"Drinking water, restricted access",brown,#734a08@0.33,Drinking water
+symbols/shop/supermarket.svg,Supermarket,other-ac39ac,,Supermarket
+symbols/leisure/dance.svg,Dance venue,green,,Dance venue

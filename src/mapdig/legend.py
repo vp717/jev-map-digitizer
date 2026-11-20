@@ -38,14 +38,17 @@ def run(a):
     def in_range(rule):
         return float(rule.findtext("MinScaleDenominator") or 0) <= sd < float(rule.findtext("MaxScaleDenominator") or 1e30)
     sym_for = {}
-    for c in classes:
+    for i, c in enumerate(classes):
         cands = [(len(r.findtext("Filter") or ""), dict(r.find("MarkersSymbolizer").attrib))
                  for r in style.findall("Rule")
                  if r.find("MarkersSymbolizer") is not None and r.find("MarkersSymbolizer").get("file") == c["file"]
                  and in_range(r)]
+        if c.get("appearance"):   # a specific drawn appearance, "fill" or "fill@opacity"
+            fill, _, op = c["appearance"].partition("@")
+            cands = [t for t in cands if t[1].get("fill") == fill and (t[1].get("opacity") or "") == op]
         if not cands:
-            sys.exit(f"{c['file']} has no marker rule at zoom {a.zoom}")
-        sym_for[c["file"]] = min(cands, key=lambda t: t[0])[1]   # shortest filter = generic variant
+            sys.exit(f"{c['file']} ({c.get('appearance') or 'default'}) has no marker rule at zoom {a.zoom}")
+        sym_for[i] = min(cands, key=lambda t: t[0])[1]   # shortest filter = generic variant
 
     # layout in output pixels
     rows = -(-len(classes) // a.columns)
@@ -60,7 +63,7 @@ def run(a):
     merc = "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +no_defs"
     rules = []
     for i, c in enumerate(classes):
-        attrs = dict(sym_for[c["file"]], **{"allow-overlap": "true", "ignore-placement": "true"})
+        attrs = dict(sym_for[i], **{"allow-overlap": "true", "ignore-placement": "true"})
         rules.append(f"<Rule><Filter>[cls] = {i}</Filter><MarkersSymbolizer "
                      + " ".join(f'{k}="{v}"' for k, v in attrs.items()) + "/></Rule>")
     csv_rows = "\n".join(f'"POINT({x} {H - y})",{i}' for i, (x, y) in enumerate(pos))
@@ -88,7 +91,8 @@ def run(a):
         x0, y0 = int(xs.min()) + x - half, int(ys.min()) + y - half
         x1, y1 = int(xs.max()) + x - half + 1, int(ys.max()) + y - half + 1
         gt.append({"index": i, "label": c["label"], "file": c["file"], "group": c["group"],
-                   "anchor": [x, y], "box": [x0, y0, x1, y1], "symbolizer": sym_for[c["file"]]})
+                   "class_label": c.get("class_label") or c["label"], "appearance": c.get("appearance") or "",
+                   "anchor": [x, y], "box": [x0, y0, x1, y1], "symbolizer": sym_for[i]})
         slug = re.sub(r"[^a-z0-9]+", "_", c["label"].lower()).strip("_")
         Image.fromarray(arr[y0:y1, x0:x1, :3]).save(os.path.join(ctrl, f"{i:02d}_{slug}.png"))
 

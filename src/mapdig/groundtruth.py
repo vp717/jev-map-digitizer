@@ -30,9 +30,15 @@ def run(a):
     m_ = Manifest("groundtruth", {"area": a.area, "bbox": a.bbox, "zoom": a.zoom, "scale": a.scale},
                   inputs=[a.classes, a.legend_gt])
     os.makedirs(a.outdir, exist_ok=True)
-    classes = list(csv.DictReader(open(a.classes)))
-    icon_size = {it["file"]: (it["box"][2] - it["box"][0], it["box"][3] - it["box"][1])
-                 for it in json.load(open(a.legend_gt))["items"]}
+    rows_ = list(csv.DictReader(open(a.classes)))
+    classes, seen_files = [], set()
+    for row in rows_:   # one ground-truth class per icon file (variant legend rows share their class)
+        if row["file"] not in seen_files:
+            seen_files.add(row["file"])
+            classes.append({**row, "label": row.get("class_label") or row["label"]})
+    icon_size = {}
+    for it in json.load(open(a.legend_gt))["items"]:
+        icon_size.setdefault(it["file"], (it["box"][2] - it["box"][0], it["box"][3] - it["box"][1]))
     base_xml = open(STYLE_XML).read()
     from mapdig.geo import scale_denominator
     sd = scale_denominator(a.zoom)

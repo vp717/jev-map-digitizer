@@ -17,6 +17,7 @@ STAGES = {
     "exp-crop":      ("mapdig.exp_crop", "add_args", "run", "Choice check with tighter crops (change 3)"),
     "exp-dance":     ("mapdig.exp_dance", "add_args", "run", "Fitness vs Dance differentiation (change 4)"),
     "icon-audit":    ("mapdig.icon_audit", "add_args", "run", "every tag/colour variant that renders to each class icon"),
+    "choice-check":  ("mapdig.choice_check", "add_args", "run", "Choice among all legend rows per detection, scored by class"),
     "runlog":        ("mapdig.runlog", "add_args", "run", "build the run-log page (one tab per run/change)"),
     "pilot-jev":     ("mapdig.pilot", "add_args", "run", "small Jev localisation pilot across magnifications"),
 }

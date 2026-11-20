@@ -4,6 +4,39 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Change 5: full class names + legend rows for appearance variants
+
+**Setup.**
+- Config `osm_phase1_v2`, with classes in `config/osm_classes_z17_v2.csv`: 26 classes, 31 legend rows.
+- Six classes renamed to cover every tag that renders to their icon:
+  - Doctor / clinic
+  - Fitness centre / station
+  - Memorial / Stolperstein
+  - Picnic site / table
+  - Christian place of worship
+  - Dance venue
+- Five legend rows added, one per appearance variant drawn in Freiburg centre: faded restricted access for Parking, Charging station, Playground and Drinking water, and the grey Picnic table. Each is scored as its class.
+- The search loop runs per legend row, and detections are merged by class.
+- New stage `choice-check`: 31 rows + "none"; a pick counts for that row's class.
+- Ground truth records appearance.
+- Same pinned tile and same 91 true icons as Change 4. Dance was **not** forced.
+- Cost: 229 new loop/screening calls ($0.140 for the tile), Opus $0.028, Choice $0.033 (96 calls, about 8,246 tokens each).
+
+**Results (vs Change 4).**
+
+| Stage | Change 4 F1 | Change 5 P / R / F1 |
+|---|---|---|
+| Search loop | 0.804 | 0.802 / 0.846 / **0.824** |
+| Choice, strict | 0.827 | 0.945 / 0.758 / 0.841 |
+| Choice, gentle | 0.828 | 0.881 / 0.813 / **0.846** (best so far) |
+
+- **Faded Parking: 4 of 4 found, up from 1 of 4.** Full colour stays at 2 of 2. Adding the variant to the legend fixes the miss.
+- Every Fitness claim on a Dance icon was answered "Dance venue" by the Choice check and removed.
+- Screening still misses Bust (0.44), Shelter (0.16) and Dance venue (0.41; the rename didn't help, 0.42 before). Unforced, Dance is missed again. "Charging station, restricted access" at 0.37 is correct: none on the tile.
+- **Regression:** under the Choice check, 2 correct Doctors were picked as "Pharmacy" and 1 as "none", and a correct Pharmacy as "Hospital". These were kept in Change 3. Names and options changed together, so the cause is confounded. Next: an ablation with new names but no variant rows (or the reverse) on cached detections, or a Choice among the health group only.
+
+---
+
 ## 2026-11-20: Icon audit: everything that renders to our 26 icons
 
 Full table in [icon-audit.md](icon-audit.md), produced by `mapdig icon-audit`.

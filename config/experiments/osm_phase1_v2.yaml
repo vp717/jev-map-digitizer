@@ -1,0 +1,47 @@
+# Change 5 (2026-11-20): v2 labels covering every tag that renders to each icon, plus one legend
+# row per drawn appearance variant (31 rows, 26 classes). Freiburg centre only, demo tile pinned.
+# Run: uv run snakemake out/osm_phase1_v2/demo_tile/report.json --cores 1 --configfile config/experiments/osm_phase1_v2.yaml
+# Run:  uv run snakemake --cores 4                      (uses this file by default)
+#       uv run snakemake --configfile config/experiments/<other>.yaml --cores 4
+name: osm_phase1_v2
+
+data:
+  extract_url: https://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez/freiburg-regbez-latest.osm.pbf
+  # Pins the snapshot (2026-11-18T21:21:02Z). Geofabrik's "latest" moves daily, so a fresh
+  # fetch will fail this check: archive the .pbf with the paper (ODbL) for others to reproduce.
+  extract_md5: 68650c431104e692143f5fa453ac0afc
+  style_version: v5.9.0   # openstreetmap-carto; must match the render image (docker/render/Dockerfile)
+
+areas:   # WGS84 [min_lon, min_lat, max_lon, max_lat]
+  freiburg_centre:    [7.825, 47.983, 7.875, 48.008]
+
+classes: config/osm_classes_z17_v2.csv
+
+render:
+  zooms: [17]
+  scales: [1]
+  legend_columns: 2
+
+pilot_jev:   # not part of `all`; run: uv run snakemake out/osm_phase1/pilot_jev/summary.csv --cores 1
+  area: freiburg_centre
+  zoom: 17
+  scale: 1
+  classes: [Doctor, Parking, Church (Christian)]
+  setups: [640x2, 320x4, 160x8]
+  positives: 10
+  negatives: 5
+  seed: 17
+
+demo_tile:   # not part of `all`: uv run snakemake out/osm_phase1/demo_tile/report.json --cores 1
+  area: freiburg_centre
+  zoom: 17
+  scale: 1
+  tile: [1856, 960]   # the baseline tile
+  legend_upscale: 3   # sheet enlargement before Opus reads it
+
+# Not yet used by the workflow (stages still to be built):
+split:   {block_m: 500, fractions: {train: 0.6, val: 0.2, test: 0.2}, seed: 17}
+tiling:  {tile_px: 640, overlap_px: 32, upscale_k: [1, 2, 3, 4], resample: lanczos}
+legend_reader: {provider: anthropic, model: claude-opus-5-5}
+eval:    {match_px: 7, curve_px: [2, 20], split: test}
+api:     {cache: cache/api, mode: online}

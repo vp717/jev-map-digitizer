@@ -51,8 +51,11 @@ def run(a):
 
     src = rasterio.open(a.map)
     W, H, T = src.width, src.height, a.tile_px
-    _, _, _, f = pyogrio.raw.read(a.gt, layer="gt", columns=["label", "px_x", "px_y"], read_geometry=False)
+    has_app = "appearance" in pyogrio.read_info(a.gt, layer="gt")["fields"]
+    _, _, _, f = pyogrio.raw.read(a.gt, layer="gt", columns=["label", "px_x", "px_y"] + (["appearance"] if has_app else []),
+                                  read_geometry=False)
     glab, gx, gy = f[0].astype(str), f[1], f[2]
+    gapp = f[3].astype(str) if has_app else np.array([""] * len(glab))
     sym = json.load(open(a.symbols))
     sym_dir = os.path.dirname(a.symbols)
     entries = [e for e in sym["entries"] if e["crop"]]
@@ -74,7 +77,8 @@ def run(a):
     tile = np.moveaxis(src.read((1, 2, 3), window=Window(tx, ty, T, T)), 0, -1).copy()
     tf = src.transform
     in_tile = (gx >= tx) & (gx < tx + T) & (gy >= ty) & (gy < ty + T)
-    truth = [{"label": l, "x": float(x - tx), "y": float(y - ty)} for l, x, y in zip(glab[in_tile], gx[in_tile], gy[in_tile])]
+    truth = [{"label": l, "x": float(x - tx), "y": float(y - ty), "appearance": ap}
+             for l, x, y, ap in zip(glab[in_tile], gx[in_tile], gy[in_tile], gapp[in_tile])]
 
     # overview: map thumbnail with the tile outlined
     sc = 1200 / W
@@ -202,7 +206,7 @@ def run(a):
     # 4. merge duplicates (same class within 4 px), georeference, GeoPackage
     merged = []
     for p_ in sorted(preds, key=lambda q: -q["present_prob"]):
-        if not any(q["label"] == p_["label"] and np.hypot(q["x"] - p_["x"], q["y"] - p_["y"]) <= 4 for q in merged):
+        if not any(q["gt_label"] == p_["gt_label"] and np.hypot(q["x"] - p_["x"], q["y"] - p_["y"]) <= 4 for q in merged):
             merged.append(p_)
     for p_ in merged:
         mx, my = tf * (tx + p_["x"], ty + p_["y"])

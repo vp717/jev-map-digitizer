@@ -445,6 +445,70 @@ Choice:    26 options + none, tight crop
 </section>
 </div>
 
+<!-- ======================= TAB: CHANGE 5 ======================= -->
+<div class="panel" id="panel-change-5" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c5-meta"></div>
+  <p class="verdict" id="c5-verdict"></p>
+  <div class="stats" id="c5-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>An audit of the stylesheet (<code>mapdig icon-audit</code>, see <code>docs/research/icon-audit.md</code>) listed every tag and appearance that renders to each of our icons. Two gaps came out of it:</p>
+  <ul>
+    <li><b>Names narrower than the icons.</b> For example, the "Doctor" icon also marks clinics, the "Fitness" icon is mostly gyms, and the "Memorial" icon in Freiburg is overwhelmingly Stolpersteine.</li>
+    <li><b>Appearance variants missing from the legend.</b> Access-restricted features are drawn at 33% opacity. <b>61% of the Parking icons drawn in Freiburg centre are this faded version.</b> Picnic tables use the picnic icon in grey, not green.</li>
+  </ul>
+</section>
+<section>
+  <h2>What changed</h2>
+  <div class="ba">
+    <div><h3>Before<span class="tag">Change 4 · 26 classes, 26 legend rows</span></h3><pre>one legend row per class, drawn in the
+class's default appearance
+names: Doctor, Fitness station, Memorial,
+       Picnic site, Church (Christian), Dance
+ground truth: one label per icon
+Dance search loop forced on</pre></div>
+    <div class="after"><h3>After<span class="tag">Change 5 · 26 classes, 31 legend rows</span></h3><pre>+5 legend rows, one per appearance variant
+  drawn in the area (faded restricted access,
+  grey picnic table), each scored as its class
+search loop runs per legend row, merged by class
+Choice: 31 legend rows + none; a pick counts
+  for that row's class
+ground truth records each icon's appearance
+Dance not forced (screening decides)</pre></div>
+  </div>
+  <h3>Renamed classes</h3>
+  <div class="tablewrap"><table><thead><tr><th>Icon file</th><th>Before</th><th>After</th></tr></thead><tbody id="c5-renames"></tbody></table></div>
+  <h3>New legend rows, next to their base row</h3>
+  <div class="cards" id="c5-variants" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))"></div>
+  <p id="c5-same"></p>
+  <figure style="max-width:520px"><img class="pix" id="c5-sheet" alt="The 31-row legend sheet"><figcaption>The new legend sheet (31 rows) that Opus read.</figcaption></figure>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Same tile and same 91 true icons as <a href="#change-4">Change 4</a>, so the two tabs compare directly.</p>
+  <div class="tablewrap"><table><thead><tr><th>Stage</th><th class="num">Change 4 F1</th><th class="num">Change 5 detections</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody id="c5-table"></tbody></table></div>
+  <h3>Recall by appearance</h3>
+  <div class="tablewrap"><table><thead><tr><th>Class</th><th>Appearance</th><th class="num">On tile</th><th class="num">Change 4 found</th><th class="num">Change 5 loop</th><th class="num">after Choice (gentle)</th></tr></thead><tbody id="c5-apps"></tbody></table></div>
+  <p class="cap">Change 4 didn't record appearance. Its per-appearance figure comes from the baseline Parking analysis: 2 of 2 full colour and 1 of 4 faded.</p>
+</section>
+<section>
+  <h2>What else moved</h2>
+  <ul id="c5-moved"></ul>
+  <h3>Correct detections the strict rule removed</h3>
+  <div class="tablewrap"><table><thead><tr><th>Class</th><th>Jev picked</th><th class="num">P(own class)</th><th class="num">P(none)</th></tr></thead><tbody id="c5-lost"></tbody></table></div>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>Names and legend rows changed together, so their effects can't be separated in this run. In particular, the Doctor → Pharmacy regression could come from either.</li>
+    <li>One tile with 6 Parking icons. The faded-variant fix (1/4 → 4/4) is clear, but the sample is small.</li>
+    <li>The extra legend rows add their own screening and search calls, plus 6 more options in every Choice call.</li>
+  </ul>
+</section>
+</div>
+
 <footer>
   <span>Ground truth: render diff of openstreetmap-carto v5.9.0, OSM snapshot 2026-11-18T21:21:02Z. Jev <code>jev-1.14.0</code>, prompt v1. Legend reader <code>claude-opus-5-5</code>.</span>
   <span>Every model call is cached by the content of its request; all tabs regenerate offline with <code>mapdig runlog</code>.</span>
@@ -650,6 +714,38 @@ document.addEventListener("click", e => { const a = e.target.closest('a[href^="#
   $("c4-icons").innerHTML = C.icons.map(q => { const ok = q.choice26 === q.truth && q.choice2 === q.truth;
     return `<div class="card ${ok ? "good" : "warn"}"><img src="${q.img}" alt="${esc(q.truth)} icon"><div class="row"><span>truth</span><b>${q.truth === "Fitness station" ? "Fitness" : "Dance"}</b></div>
       <div class="row"><span>26-way</span><b>${esc(q.choice26 === "Fitness station" ? "Fitness" : q.choice26)}</b></div><div class="row"><span>2-way</span><b>${esc(q.choice2 === "Fitness station" ? "Fitness" : q.choice2)}</b></div></div>`; }).join("");
+})();
+
+// ---------- change 5 ----------
+(() => {
+  const C = D.c5, ch = C.choice, c4 = C.c4;
+  $("c5-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", `${C.demo_cost.api_new_calls + ch.api_new_calls + 1} new calls`]);
+  const fadedLine = ch.loop.by_appearance["Parking | #0092da@0.33"];
+  $("c5-verdict").textContent = `With the faded variant in the legend, every faded Parking icon on the tile was found (${fadedLine.found} of ${fadedLine.n}, up from 1 of 4). Loop F1 rose from ${fmt(c4.loop.f1, 3)} to ${fmt(ch.loop.f1, 3)}, and after the Choice check from ${fmt(c4.gentle.f1, 3)} to ${fmt(ch.gentle.f1, 3)} (gentle), the best so far. One new weakness: the Choice check now lost 2 Doctors to "Pharmacy".`;
+  $("c5-stats").innerHTML = stat(`1/4 → ${fadedLine.found}/${fadedLine.n}`, "faded Parking found") + stat(fmt(c4.loop.f1, 3) + " → " + fmt(ch.loop.f1, 3), "F1, search loop") +
+    stat(fmt(c4.gentle.f1, 3) + " → " + fmt(ch.gentle.f1, 3), "F1, after Choice (gentle)") + stat(fmt(ch.strict.precision, 3), "precision, strict") +
+    stat("$" + fmt(C.demo_cost.total_usd + ch.cost.usd, 3), "run cost", `${C.demo_cost.api_new_calls} new loop/screen calls`);
+  $("c5-renames").innerHTML = C.renames.map(r => `<tr><td class="mono">${esc(r.file)}</td><td>${esc(r.old)}</td><td><b>${esc(r.new)}</b></td></tr>`).join("");
+  $("c5-variants").innerHTML = C.variants.filter(v => v.appearance && v.label !== "Picnic site").map(v => `<div class="card"><div class="claim">${esc(v.label)}</div>
+    <div class="why">scored as <b>${esc(v.class)}</b> · appearance <span class="mono">${esc(v.appearance)}</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end"><div style="text-align:center"><img class="pix" src="${v.base_img}" alt="base row"><div class="cap">base row</div></div>
+    <div style="text-align:center"><img class="pix" src="${v.img}" alt="variant row"><div class="cap">new row</div></div></div></div>`).join("");
+  $("c5-sheet").src = C.sheet;
+  $("c5-same").textContent = `Opus read all ${C.opus.entries_read} legend rows with exact labels; every crop matched its true box (${usd(C.opus.cost_usd)}). Unchanged: the tile, model, prompt template, crops and thresholds. Calls for rows whose name and image didn't change replayed from the cache (${C.demo_cost.api_cache_hits} of ${C.demo_cost.jev_calls}).`;
+  $("c5-table").innerHTML = [["search loop", c4.loop, ch.loop], ["after Choice, strict", c4.strict, ch.strict], ["after Choice, gentle", c4.gentle, ch.gentle]].map(([n, a, b], i) =>
+    `<tr${i === 2 ? ' class="hl"' : ""}><td>${n}</td><td class="num">${fmt(a.f1, 3)}</td><td class="num">${b.pred}</td><td class="num">${fmt(b.precision, 3)}</td><td class="num">${fmt(b.recall, 3)}</td><td class="num">${fmt(b.f1, 3)}</td></tr>`).join("");
+  const apps = Object.entries(ch.loop.by_appearance).filter(([k]) => /Parking|Charging|Playground|Drinking|Picnic|Fitness|Dance/.test(k));
+  const c4found = { "Parking | #0092da": "2", "Parking | #0092da@0.33": "1" };
+  $("c5-apps").innerHTML = apps.map(([k, v]) => { const [cls, app] = k.split(" | "); const g = ch.gentle.by_appearance[k];
+    return `<tr${app.includes("@") ? ' class="hl"' : ""}><td>${esc(cls)}</td><td class="mono">${esc(app)}${app.includes("@0.33") ? " (faded)" : ""}</td><td class="num">${v.n}</td><td class="num">${c4found[k] ?? "–"}</td><td class="num">${v.found}</td><td class="num">${g.found}</td></tr>`; }).join("");
+  const miss = C.screen_missed.map(m => `${m.label} (P ${fmt(m.p)})`).join(", ");
+  $("c5-moved").innerHTML = [
+    `Screening still says no for: ${miss}. "Charging station, restricted access" scoring 0.37 is correct: no faded charging stations are on this tile, and the row's count is for the whole class. Bust, Shelter and Dance venue (renamed from Dance; 0.42 → 0.41) remain real misses. Because Dance wasn't forced this time, its 2 icons are missed again.`,
+    `The two Fitness claims on Dance icons were both answered "Dance venue" in the Choice check and removed, as in Change 4.`,
+    `The red health icons got worse under the Choice check: 2 correct Doctors were picked as "Pharmacy" and 1 as "none", and a correct Pharmacy as "Hospital". In Change 3 those Doctors were kept. Both the new name ("Doctor / clinic") and the 6 extra options changed at once, so the cause isn't known yet.`,
+    `Cost: ${C.demo_cost.api_new_calls} new screening and loop calls (renamed classes and new rows) plus ${ch.cost.calls} Choice calls. Each Choice call carries ${ch.n_options} options at about ${Math.round(ch.cost.tokens / ch.cost.calls).toLocaleString()} tokens.`
+  ].map(t => `<li>${esc(t)}</li>`).join("");
+  $("c5-lost").innerHTML = C.rows_lost.map(q => `<tr><td>${esc(q.gt_label)}</td><td>${esc(q.choice)}</td><td class="num">${fmt(q.p_class)}</td><td class="num">${fmt(q.p_none)}</td></tr>`).join("");
 })();
 
 show(location.hash.slice(1));

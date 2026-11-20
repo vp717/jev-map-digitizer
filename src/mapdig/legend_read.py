@@ -101,7 +101,8 @@ def run(a):
         if refined:
             sheet.crop(tuple(refined)).save(os.path.join(a.outdir, crop_path))
         out.append({"index": i, "label": e["label"], "read_box": [round(v, 1) for v in bx], "crop_box": refined,
-                    "crop": crop_path if refined else None, "gt_label": best["label"], "gt_file": best["file"],
+                    "crop": crop_path if refined else None, "gt_label": best.get("class_label", best["label"]), "gt_row": best["label"],
+                    "gt_appearance": best.get("appearance", ""), "gt_file": best["file"],
                     "gt_box": best["box"], "iou_read": round(iou_read, 3), "iou_crop": round(iou_ref, 3),
                     "label_exact": e["label"].strip().lower() == best["label"].strip().lower()})
         d.rectangle([v * 2 for v in bx], outline="#e0218a", width=2)
@@ -109,7 +110,7 @@ def run(a):
             d.rectangle([v * 2 for v in refined], outline="#1a9e3f", width=1)
     overlay.save(os.path.join(a.outdir, "read_overlay.png"))
     summary = {"model": entry["response"]["model"], "entries_read": len(out), "entries_true": len(gt),
-               "classes_covered": len({o["gt_label"] for o in out if o["iou_crop"] > 0.5}),
+               "classes_covered": len({o["gt_row"] for o in out if o["iou_crop"] > 0.5}),
                "labels_exact": sum(o["label_exact"] for o in out),
                "median_iou_read": float(np.median([o["iou_read"] for o in out])) if out else 0,
                "median_iou_crop": float(np.median([o["iou_crop"] for o in out])) if out else 0,

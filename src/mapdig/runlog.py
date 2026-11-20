@@ -204,12 +204,45 @@ def run(a):
           "legend_fitness": icon4("Fitness station", "c4_leg_fitness.png"), "legend_dance": icon4("Dance", "c4_leg_dance.png"),
           "baseline_fps": [jpg(open_(f"{Y}/crops/{i:02d}_box.png"), f"c4_basefp{i:02d}.jpg", 160) for i in base_fit]}
 
+    # ---------- tab 6: change 5, full labels + appearance-variant legend rows ----------
+    E5 = E + "_v2"
+    C5 = json.load(open(f"{E5}/choice_check/summary.json"))
+    r5 = json.load(open(f"{E5}/demo_tile/report.json"))
+    sym5 = json.load(open(f"{E5}/legend_read/z17_s1/symbols.json"))
+    rows5 = list(csv.DictReader(open("config/osm_classes_z17_v2.csv")))
+    old_rows = {q["file"]: q["label"] for q in csv.DictReader(open("config/osm_classes_z17_dance.csv"))}
+    renames = [{"file": q["file"], "old": old_rows[q["file"]], "new": q["label"]} for q in rows5
+               if not q["appearance"] or q["label"] == "Picnic site"]
+    renames = [x for x in renames if x["old"] != x["new"]]
+    variant_imgs = []
+    for e in sym5["entries"]:
+        if e.get("gt_appearance") or e["label"] in ("Picnic site",):
+            variant_imgs.append({"label": e["label"], "class": e["gt_label"], "appearance": e.get("gt_appearance", ""),
+                                 "img": pngf(open_(f"{E5}/legend_read/z17_s1/{e['crop']}"), f"c5_row{e['index']:02d}.png", 6)})
+    base_of = {}
+    for e in sym5["entries"]:
+        if not e.get("gt_appearance") and e["gt_label"] in {v["class"] for v in variant_imgs}:
+            base_of[e["gt_label"]] = pngf(open_(f"{E5}/legend_read/z17_s1/{e['crop']}"), f"c5_base{e['index']:02d}.png", 6)
+    for v in variant_imgs:
+        if v["label"] == "Picnic site":   # the picnic class's base row has an explicit (green) appearance
+            base_of.setdefault(v["class"], v["img"])
+    for v in variant_imgs:
+        v["base_img"] = base_of.get(v["class"])
+    c5 = {"choice": {k: C5[k] for k in ("loop", "strict", "gentle", "cost", "n_options", "api_new_calls")},
+          "c4": {k: S4["A"][k] for k in ("loop", "strict", "gentle")}, "renames": renames, "variants": variant_imgs,
+          "opus": sym5["summary"], "demo_cost": r5["cost"],
+          "screen_missed": [{"label": x["label"], "p": x["p_present"], "n": x["n_true"]} for x in r5["screening"] if x["n_true"] and not x["screened_in"]],
+          "sheet": pngf(open_(f"{E5}/legend/z17_s1/sheet.png"), "c5_sheet.png", 1),
+          "rows_lost": [q for q in C5["rows"] if q["match"] == "TP" and not q["strict"]],
+          "manifest": manifest(f"{E5}/choice_check/manifest.json")}
+
     data = {"tabs": [{"id": "run-1", "title": "Run 1 · baseline", "date": "2026-11-20"},
                      {"id": "change-1", "title": "Change 1 · batched screening", "date": "2026-11-20"},
                      {"id": "change-2", "title": "Change 2 · Choice check", "date": "2026-11-20"},
                      {"id": "change-3", "title": "Change 3 · tighter crops", "date": "2026-11-20"},
-                     {"id": "change-4", "title": "Change 4 · Fitness vs Dance", "date": "2026-11-20"}],
-            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4}
+                     {"id": "change-4", "title": "Change 4 · Fitness vs Dance", "date": "2026-11-20"},
+                     {"id": "change-5", "title": "Change 5 · full names + variants", "date": "2026-11-20"}],
+            "base": base, "c1": c1, "c2": c2, "c3": c3, "c4": c4, "c5": c5}
     tpl = open(os.path.join(os.path.dirname(__file__), "templates", "runlog.html")).read()
     open(os.path.join(O, "index.html"), "w").write(tpl.replace("/*DATA*/null", json.dumps(data, separators=(",", ":"))))
     files = sorted("img/" + f for f in os.listdir(I))
