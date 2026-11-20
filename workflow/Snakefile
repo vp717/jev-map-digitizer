@@ -244,6 +244,19 @@ rule exp_anon:
         "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
 
 
+# Flakiness check: repeat identical Choice calls on the most uncertain medical icons (osm_phase1_v2 config)
+rule exp_repeat:
+    input:
+        anon=f"{OUT}/exp_anon/summary.json",
+        symbols=f"{OUT}/legend_read/z{DT['zoom']}_s{DT['scale']}/symbols.json",
+    output: summary=f"{OUT}/exp_repeat/summary.json"
+    params: api=f"--cache {config['api']['cache']} --api-mode {config['api']['mode']}"
+    log: f"{OUT}/logs/exp_repeat.log"
+    shell:
+        "{ML} mapdig exp-repeat --anon-summary {input.anon} --symbols {input.symbols} --icons 10 --repeats 30 "
+        "{params.api} --outdir $(dirname {output.summary}) > {log} 2>&1"
+
+
 # Run-log page (one tab per run / method change); rebuild after any experiment.
 rule runlog:
     input:

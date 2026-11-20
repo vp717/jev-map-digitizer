@@ -4,6 +4,37 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: Jev is non-deterministic: identical calls give different answers
+
+**Setup.**
+- Stage `exp-repeat`, output `out/osm_phase1_v2/exp_repeat/`. 580 new calls, $0.20.
+- The 10 most uncertain medical icons from the Change 6 119-icon test (lowest P on the true class in either mode); all 10 are Doctor / clinic.
+- Each asked the same 31-row Choice **30 times, byte-identical**, under both names and codes. The repeat number lives only in the cache key.
+
+**Results.**
+- **Every icon gets several different answers.** 4–15 distinct responses per 30 identical calls. The probability on the true class swings across the **full 0.0–1.0 range** for every icon.
+- **Single-call accuracy is about 77% in both modes:** names 232/300, codes 229/300. Each icon is right 20–27 times out of 30. So all 10 "wrong" answers in Change 6 were the minority answer of a flaky call, not a stable mistake.
+- **Names vs codes shift *which* wrong answer appears, not how often.**
+  - names: Hospital 24, Museum 21, none 11
+  - codes: Hospital 1, Museum 35, none 28
+
+  The name "clinic" does pull toward Hospital; codes trade that for Museum and "none".
+- **Majority vote fixes most of it.** Simulated from the 30 answers:
+
+| Voting calls | names | codes |
+|---|---|---|
+| 1 (single call) | 77% | 76% |
+| 3 | 86% | 85% |
+| 5 | 92% | 91% |
+| 7 | 96% | 96% |
+
+**Implications.**
+1. Single-call comparisons in Changes 2–6 carry this noise. Differences of a few detections between conditions are within it, so the Change 6 names-vs-codes Choice result in particular isn't significant.
+2. A single response's probability or confidence isn't a stable per-item score; it can't be used as a threshold without averaging.
+3. Use 3–5 repeated calls with a majority vote for the class decision (about 3–5× Choice cost, roughly $0.0003 per call). The search loop's yes/no answers are presumably equally flaky, and repeated "present?" questions could steady screening too.
+
+---
+
 ## 2026-11-20: Change 6: legend names vs arbitrary codes (medical classes)
 
 **Hypothesis (user).** The thematic meaning of class names may pollute Jev's judgement.

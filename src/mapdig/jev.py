@@ -62,13 +62,15 @@ class Jev:
 
         return self.cache.get_or_call("typesafe", request, call)
 
-    def which_symbol(self, crop_png: bytes, options, none_label="none of these"):
+    def which_symbol(self, crop_png: bytes, options, none_label="none of these", repeat=0):
         """Choice: which legend excerpt is drawn at the centre of `crop`? options: [(label, legend_png)].
         Adds a text option for 'none of these'. Returns the cache entry."""
         from typesafe_sdk import Choice, Image
         request = {"model": self.model, "prompt_version": self.pv, "questions": "which_symbol",
                    "crop_sha256": sha256_bytes(crop_png), "options": [[lab, sha256_bytes(b)] for lab, b in options],
                    "none": none_label}
+        if repeat:   # cache-key only: the request sent to Jev is identical for every repeat
+            request["repeat"] = repeat
 
         def call():
             crop = Image(crop_png)
