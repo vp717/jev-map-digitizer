@@ -4,6 +4,59 @@ A running lab notebook for the map-digitizer project: findings, numbers, surpris
 
 ---
 
+## 2026-11-20: First end-to-end run on one tile (Opus legend + two-stage Jev loop)
+
+**Setup.**
+- Stages `read-legend` and `demo-tile`. Outputs: `out/osm_phase1/{legend_read,demo_tile}/`.
+- Tile: Freiburg centre, origin (1856, 960) map px, 640 px (about 511 m on the ground). It was chosen automatically as the window with the most classes: 20 classes, 89 icons.
+- Legend: Opus 5.5 reads the sheet (enlarged ×3, effort high, structured JSON); code tightens each crop to the icon's non-background pixels.
+- Screening: Noul on the tile enlarged ×2, all 25 classes, threshold 0.5.
+- Search loop: 160 px sub-tiles (step 120, 25 per tile) enlarged ×8, Noul + Box; stop if P < 0.5 or the box is on an inpainted area; cv2 Telea inpainting of the box (±1 px) in a per-class working copy; at most 8 passes.
+- Scoring: one-to-one, same class, ≤ 7 px.
+
+**Legend reading (Opus).**
+- All 25 entries found, all 25 labels exact.
+- Opus box IoU against the truth: median 0.88 (min about 0.70, Statue).
+- After code tightening, all 25 crops equal the true icon boxes pixel for pixel. The Opus-read legend is therefore identical to the perfect control at s1.
+- $0.023 (2,751 input / 580 output tokens), 8.9 s.
+
+**Screening (stage 1).**
+- 18 of 18 classes present in the tile were screened in.
+- The 5 classes absent from the tile were screened out: Viewpoint 0.24, Picnic 0.24, Guest house 0.41, Chalet 0.03, Hospital 0.33.
+- 2 present classes were missed: **Bust** (1 icon, P = 0.44) and **Shelter** (1 icon, P = 0.16).
+- Screening cost 25 calls, so it is close to free. It did not save much here, because this tile is unusually dense.
+
+**Detection.**
+
+| Precision | Recall | F1 | Median error |
+|---|---|---|---|
+| 0.787 (74/94) | 0.831 (74/89) | **0.809** | 1.48 px ≈ **1.2 m** |
+
+- Perfect classes: Doctor 8/8, Artwork 4/4, Supermarket 4/4, Bicycle rental 3/3, Museum, Bus stop, Playground and Drinking water.
+- Memorial: 20/21 recall, 20/22 precision.
+
+**Error analysis** (20 false positives, 15 misses):
+1. **Cross-class confusion is the largest source: 10 of 20 false positives.** Each class is searched independently, so one icon can be claimed by several look-alike classes:
+   - **Statue fired on Artwork ×4 and on Bust ×1.** All three are brown, tall and thin. Statue had 6 predictions for 1 true icon.
+   - Pharmacy fired on Doctor ×2 (both red crosses).
+   - Taxi rank fired on Bus stop.
+
+   *Fix to try:* resolve conflicts between classes at the same location, by keeping the higher-P class or by asking a Jev Choice among the candidate classes for that crop.
+2. **Off by 8–12 px: 5 false positives and about 5 misses are the same icons**, boxed slightly off-centre (Memorial 12 px, Hotel 11 px, Charging station 8 px, Traffic signals 9–12 px). These are probably partial icons at sub-tile edges and boxes spanning two adjacent icons. A 12 px tolerance would turn them into hits, F1 ≈ 0.86. *Fix to try:* re-centre each detection with a crop around the box, or snap to the template.
+3. **The pale-blue Parking variant was never found: 3 of 6 Parking icons.** All 3 misses are the light-blue private-parking variant (darkest pixel about RGB 145,187,201), which the legend doesn't show. This confirms the legend–map mismatch predicted on 2026-11-19. It is a realistic failure mode to report.
+4. **Dense clusters of Traffic signals: 7 of 18 missed** around junctions where signals sit about 12 px apart. Likely causes: boxes landing between icons, and inpainting of one box clipping its neighbour.
+5. **About 5 hallucinations:** Fitness station ×2 (with high box confidence 0.87–0.90), Church ×2, Traffic signals ×1. **Box confidence did not separate these from true hits.**
+
+**Cost and time.**
+- 569 Jev calls (25 screening + 544 loop), 2.89 M input tokens, **$0.121**. Opus $0.023. **Total $0.14 for 0.26 km²**, about $0.55/km² in this very dense tile.
+- 448 of the 569 calls were "stop: not present" answers, so most of the cost goes on confirming absence.
+- Sequential loop time: 188 s (about 0.33 s per call, warm).
+- Of the loop steps, 94 detect-and-inpaint, 448 stop on "not present", and 2 stop on "box on removed area".
+
+**Caveats.** One tile, chosen for density, thresholds untuned (0.5 and 0.5). Not a paper result.
+
+---
+
 ## 2026-11-20: Coverage per dollar: exhaustive vs two-stage search
 
 **Method.** Call counts estimated from the ground truth, assuming a perfect detector: presence is always right, the loop finds each icon once, and one final "none left" call. Price per call is $0.000213 (about 5,080 tokens × $0.042 per million). All 25 classes.

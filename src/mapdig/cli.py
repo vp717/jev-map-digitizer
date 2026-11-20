@@ -11,6 +11,8 @@ STAGES = {
     "legend":        ("mapdig.legend", "add_args", "run", "build the legend sheet, true boxes and control crops"),
     "groundtruth":   ("mapdig.groundtruth", "add_args", "run", "base render + render-diff ground truth"),
     "overlay":       ("mapdig.overlay", "add_args", "run", "draw ground truth over a map crop"),
+    "read-legend":   ("mapdig.legend_read", "add_args", "run", "Claude Opus reads the legend; code crops symbols"),
+    "demo-tile":     ("mapdig.demo", "add_args", "run", "whole Jev pipeline on one tile, with intermediate images"),
     "pilot-jev":     ("mapdig.pilot", "add_args", "run", "small Jev localisation pilot across magnifications"),
 }
 

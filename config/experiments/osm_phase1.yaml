@@ -31,6 +31,13 @@ pilot_jev:   # not part of `all`; run: uv run snakemake out/osm_phase1/pilot_jev
   negatives: 5
   seed: 17
 
+demo_tile:   # not part of `all`: uv run snakemake out/osm_phase1/demo_tile/report.json --cores 1
+  area: freiburg_centre
+  zoom: 17
+  scale: 1
+  tile: auto          # or [x, y] in map px
+  legend_upscale: 3   # sheet enlargement before Opus reads it
+
 # Not yet used by the workflow (stages still to be built):
 split:   {block_m: 500, fractions: {train: 0.6, val: 0.2, test: 0.2}, seed: 17}
 tiling:  {tile_px: 640, overlap_px: 32, upscale_k: [1, 2, 3, 4], resample: lanczos}
