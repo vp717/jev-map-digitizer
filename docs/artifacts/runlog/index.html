@@ -1,0 +1,1037 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freiburg Tile Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a run log. Tabs across the top, one per run or method change; each panel reads top to bottom: what changed, how measured, result, caveats */
+:root {
+  --bg: #f4f6f4; --surface: #ffffff; --ink: #1d2622; --muted: #5a6762; --rule: #d6ddd8; --code: #eef2ef;
+  --accent: #c2187a; --tp: #1a9e3f; --fp: #c2187a; --fn: #e07b00; --absent: #9aa7a0; --before: #6b7c74; --after: #2d6fb5;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131a17; --surface: #1b2420; --ink: #e2e9e5; --muted: #98a59f; --rule: #2d3833; --code: #222d29;
+  --accent: #f06bb3; --tp: #5cc97f; --fp: #f06bb3; --fn: #f5a442; --absent: #5f6d66; --before: #93a49c; --after: #6fa8e8; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #131a17; --surface: #1b2420; --ink: #e2e9e5; --muted: #98a59f; --rule: #2d3833; --code: #222d29;
+  --accent: #f06bb3; --tp: #5cc97f; --fp: #f06bb3; --fn: #f5a442; --absent: #5f6d66; --before: #93a49c; --after: #6fa8e8; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 17px/1.6 var(--font-body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 32px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.1; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.2rem, 5.5vw, 3.2rem); font-weight: 700; }
+h2 { font-size: 1.8rem; font-weight: 600; display: flex; gap: 12px; align-items: baseline; }
+h2 .n { font-family: var(--font-mono); font-size: 0.95rem; color: var(--accent); }
+h3 { font-size: 1.25rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.top { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--rule); padding-bottom: 18px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button { font: 600 1.05rem var(--font-display); padding: 7px 16px; border-radius: 999px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+.tabs button small { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+.tabs button[aria-selected="true"] { border-color: var(--accent); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tabs button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panel { display: flex; flex-direction: column; gap: 52px; }
+section, .phead { display: flex; flex-direction: column; gap: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.verdict { border-left: 4px solid var(--accent); padding: 4px 0 4px 14px; font-size: 1.08rem; max-width: 70ch; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat b { font-family: var(--font-display); font-size: 1.9rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.85rem; color: var(--muted); }
+.stat em { font-style: normal; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; list-style: none; padding: 0; margin: 0; counter-reset: s; }
+.steps li { counter-increment: s; border-top: 3px solid var(--accent); padding-top: 8px; font-size: 0.92rem; }
+.steps li::before { content: counter(s); font-family: var(--font-mono); color: var(--accent); margin-right: 6px; }
+.steps li b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+figure img { width: 100%; height: auto; display: block; border: 1px solid var(--rule); border-radius: 4px; }
+.pix { image-rendering: pixelated; }
+figcaption, .cap { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+.crops { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.crop { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.crop img { height: 48px; width: auto; image-rendering: pixelated; }
+.crop span { font-size: 0.72rem; line-height: 1.2; }
+.crop em { font-family: var(--font-mono); font-style: normal; font-size: 0.68rem; color: var(--muted); }
+.note { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--muted); max-width: 70ch; }
+.bars { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.bar { display: grid; grid-template-columns: 150px 1fr 70px; gap: 10px; align-items: center; font-size: 0.85rem; min-width: 420px; }
+.bar .lab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .track { position: relative; height: 14px; background: var(--bg); border-radius: 2px; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 2px; }
+.bar .thr { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 0; border-left: 2px dashed var(--ink); opacity: 0.55; }
+.bar .val { font-family: var(--font-mono); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.bar.missed .lab { color: var(--fn); font-weight: 600; }
+.axis { display: grid; grid-template-columns: 150px 1fr 70px; gap: 10px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); min-width: 420px; }
+.axis .ticks { display: flex; justify-content: space-between; }
+.key { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.82rem; color: var(--muted); }
+.key i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+.frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 18px; }
+.frame { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.frame .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.frame .pair img { width: 100%; border-radius: 3px; border: 1px solid var(--rule); }
+.frame .capr { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); }
+.pill { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.TP, .pill.good { color: var(--tp); } .pill.FP, .pill.bad { color: var(--fp); } .pill.FN, .pill.warn { color: var(--fn); } .pill.neutral { color: var(--muted); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; min-width: 520px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+td.num, th.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+tr:last-child td { border-bottom: none; }
+tr.hl td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.errs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.err { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.err b { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; }
+.err .count { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); }
+pre { background: var(--code); border-radius: 6px; padding: 12px 14px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.78rem; margin: 0; line-height: 1.5; }
+.ba { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .ba { grid-template-columns: 1fr; } }
+.ba > div { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; border-top: 4px solid var(--before); }
+.ba > div.after { border-top-color: var(--after); }
+.ba h3 .tag { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-left: 8px; }
+.same { display: flex; flex-wrap: wrap; gap: 6px; }
+.same span { font-family: var(--font-mono); font-size: 0.76rem; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 8px; }
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+.strip img { width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 3px; image-rendering: pixelated; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tilecard { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; }
+.tilecard img { width: 100%; border-radius: 3px; }
+.tilecard.hot { border-color: var(--accent); }
+.scatter { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 12px; }
+.scatter svg { width: 100%; height: auto; max-width: 520px; display: block; margin: 0 auto; }
+.scatter text { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; border-top: 4px solid var(--rule); min-width: 0; }
+.card.good { border-top-color: var(--tp); } .card.bad { border-top-color: var(--fp); } .card.warn { border-top-color: var(--fn); }
+.card img { width: 100%; border-radius: 3px; border: 1px solid var(--rule); }
+.card .row { display: flex; justify-content: space-between; gap: 6px; }
+.card .row span:first-child { color: var(--muted); }
+.card .row b { font-weight: 600; text-align: right; }
+.card .claim { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; line-height: 1.15; }
+.card .why { font-size: 0.8rem; color: var(--muted); line-height: 1.35; }
+.card .why b { color: var(--ink); font-weight: 600; }
+.card .verdictline { font-size: 0.82rem; font-weight: 600; }
+.card.good .verdictline { color: var(--tp); } .card.bad .verdictline { color: var(--fp); } .card.warn .verdictline { color: var(--fn); }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.trio > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 0.74rem; text-align: center; }
+.trio .lab { font-family: var(--font-mono); color: var(--muted); }
+.trio .ans { font-weight: 600; }
+footer { border-top: 1px solid var(--rule); padding-top: 18px; color: var(--muted); font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
+</style>
+
+<div class="wrap">
+<div class="top">
+  <span class="eyebrow">map-digitizer · phase 1 · run log</span>
+  <h1>Freiburg Tile Walkthrough</h1>
+  <p>One 640&nbsp;px OpenStreetMap tile of central Freiburg, taken through the legend-driven pipeline. The first tab is the baseline run. Each later tab is one change to the method: exactly what changed, how it was measured, and the result before and after.</p>
+  <div class="tabs" role="tablist" id="tabs"></div>
+</div>
+
+<!-- ======================= TAB: RUN 1 ======================= -->
+<div class="panel" id="panel-run-1" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="b-meta"></div>
+  <p class="verdict">Baseline: Opus reads the legend; Jev screens all 25 classes on the tile, then searches each screened-in class with a box-and-inpaint loop on 160&nbsp;px sub-tiles.</p>
+  <div class="stats" id="b-stats"></div>
+</div>
+<section>
+  <h2>The pipeline</h2>
+  <ol class="steps">
+    <li><b>Read legend</b><br>Opus returns labels and symbol boxes; code crops.</li>
+    <li><b>Choose tile</b><br>640&nbsp;px window with the most classes.</li>
+    <li><b>Screen</b><br>Jev: is this symbol anywhere in the tile? (×2)</li>
+    <li><b>Search loop</b><br>Box, inpaint, ask again on 160&nbsp;px sub-tiles (×8).</li>
+    <li><b>Georeference</b><br>Merge, convert to EPSG:3857, write GeoPackage.</li>
+    <li><b>Score</b><br>Match to render-diff truth within 7&nbsp;px.</li>
+  </ol>
+</section>
+<section>
+  <h2><span class="n">1</span>Read the legend</h2>
+  <p>The legend sheet is generated from openstreetmap-carto's own icons at map scale. Opus 5.5 gets it enlarged ×3 and returns JSON: each entry's label and the pixel box of its symbol. Code tightens each box to the symbol's non-background pixels and cuts it out of the sheet. Nothing is redrawn.</p>
+  <div class="two">
+    <figure><img class="pix" data-b="legend_sheet" alt="Generated legend sheet with 25 entries"><figcaption>Input: the legend sheet (shown ×2).</figcaption></figure>
+    <figure><img class="pix" data-b="legend_read" alt="Legend sheet with Opus boxes in pink and tightened crops in green"><figcaption>Opus boxes (pink) and the tightened crops (green).</figcaption></figure>
+  </div>
+  <p id="b-legend-text"></p>
+  <div class="crops" id="b-crops"></div>
+</section>
+<section>
+  <h2><span class="n">2</span>Choose the tile</h2>
+  <p id="b-tile-text"></p>
+  <div class="two">
+    <figure><img data-b="overview" alt="Freiburg centre render with the tile outlined"><figcaption>Freiburg centre at zoom&nbsp;17, tile outlined.</figcaption></figure>
+    <figure><img data-b="tile" alt="The 640 pixel tile"><figcaption>The tile at native resolution, 640 × 640&nbsp;px.</figcaption></figure>
+  </div>
+</section>
+<section>
+  <h2><span class="n">3</span>Screen every class</h2>
+  <p>The whole tile is shown once per class, enlarged ×2, with that class's legend symbol: 25 separate calls. Only classes scoring 0.5 or more go on to the search loop. The legend symbol is enlarged by the same factor and padded to Jev's 280&nbsp;px minimum, so it keeps the map's scale.</p>
+  <div class="key"><span><i style="background:var(--tp)"></i>class present in tile</span><span><i style="background:var(--absent)"></i>class absent</span><span>dashed line: threshold 0.5</span><span style="color:var(--fn);font-weight:600">orange label: present but screened out</span></div>
+  <div class="bars" id="b-bars"></div>
+  <p id="b-screen-text"></p>
+</section>
+<section>
+  <h2><span class="n">4</span>Search loop</h2>
+  <p>For each screened-in class, the tile is cut into 25 sub-tiles of 160&nbsp;px (overlapping by 40&nbsp;px), each enlarged ×8 to 1,280&nbsp;px. A 14&nbsp;px icon then appears at about 112&nbsp;px, the size where the pilot found Jev's boxes reliable. Each call asks whether an instance is left and where one is. If yes, the box centre becomes a point and the box is inpainted from its surroundings. The sub-tile is then asked again. It stops below 0.5, or when the box lands on painted-out pixels.</p>
+  <p class="note">Every class works on its own copy of the tile, so a symbol removed in one sub-tile is already gone when an overlapping sub-tile is searched.</p>
+  <div class="frames" id="b-frames"></div>
+  <div class="two">
+    <figure><img data-b="tile" alt="Original tile"><figcaption>Before: the tile.</figcaption></figure>
+    <figure><img data-b="memorial_after" alt="Tile after the Memorial loop"><figcaption>After the Memorial loop: 22 boxes inpainted (20 correct, 1 off-centre by 12 px, 1 duplicate). Other symbols are untouched.</figcaption></figure>
+  </div>
+  <p id="b-loop-text"></p>
+</section>
+<section>
+  <h2><span class="n">5–6</span>Georeference and score</h2>
+  <p id="b-score-text"></p>
+  <div class="key"><span><i style="background:var(--tp)"></i>× correct (within 7&nbsp;px, right class)</span><span><i style="background:var(--fp)"></i>× false positive</span><span><i style="background:var(--fn)"></i>○ missed symbol</span></div>
+  <figure><img data-b="result" alt="Tile with correct, false and missed detections marked"><figcaption>Result on the tile, enlarged ×2.</figcaption></figure>
+  <div class="tablewrap"><table><thead><tr><th>Class</th><th class="num">In tile</th><th class="num">Predicted</th><th class="num">Correct</th><th class="num">Recall</th><th class="num">Precision</th></tr></thead><tbody id="b-classes"></tbody></table></div>
+</section>
+<section>
+  <h2>What went wrong</h2>
+  <div class="errs">
+    <div class="err"><span class="count">8 of 20 false positives</span><b>Look-alike classes claim the same icon</b><p>Each class is searched on its own, so one icon can be claimed by another class. Statue fired on Artwork four times and on Bust once. Pharmacy fired on Doctor twice, and Taxi on Bus stop. → tested in <a href="#change-2">Change 2</a>.</p></div>
+    <div class="err"><span class="count">2 of 20 false positives</span><b>The same icon found twice</b><p>A Memorial and a Traffic signal were each detected twice, about 7&nbsp;px apart. One point is matched and the other counts as a false positive. Duplicates are only merged within 4&nbsp;px, which is less than an icon's width.</p></div>
+    <div class="err"><span class="count">5 false positives ≈ 5 misses</span><b>Right icon, 8–15&nbsp;px off</b><p>The box landed off-centre on partial icons at sub-tile edges or between neighbours. With a 12&nbsp;px tolerance F1 would be about 0.86.</p></div>
+    <div class="err"><span class="count">3 of 6 Parking</span><b>A colour the legend doesn't show</b><p>All three missed Parking icons are the pale-blue private-parking variant. In each case Jev answered "not present" (P 0.16–0.31). The prompt says "same shape and colour".</p></div>
+    <div class="err"><span class="count">7 of 18 Traffic signals</span><b>Dense clusters</b><p>Signals around junctions sit about 12&nbsp;px apart; boxes land between them, and inpainting one can clip its neighbour.</p></div>
+    <div class="err"><span class="count">5 of 20 false positives</span><b>Nothing there in the ground truth</b><p>Fitness station twice, Church twice, Traffic signals once, with no true icon of that class within 15&nbsp;px. Box confidence was high on some (0.87–0.90).</p></div>
+    <div class="err"><span class="count">2 classes</span><b>Screened out</b><p>Bust (P&nbsp;=&nbsp;0.44) and Shelter (P&nbsp;=&nbsp;0.16) each had one icon and never reached the loop.</p></div>
+  </div>
+</section>
+<section>
+  <h2>Cost and time</h2>
+  <div class="tablewrap"><table><thead><tr><th>Item</th><th class="num">Calls</th><th class="num">Input tokens</th><th class="num">Cost</th></tr></thead><tbody id="b-cost"></tbody></table></div>
+  <p id="b-cost-text"></p>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 1 ======================= -->
+<div class="panel" id="panel-change-1" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c1-meta"></div>
+  <p class="verdict" id="c1-verdict"></p>
+  <div class="stats" id="c1-stats"></div>
+</div>
+<section>
+  <h2>What changed</h2>
+  <p>Only the screening step (step 3 of the baseline). Instead of one call per class, all 25 classes are asked in a single call about the same tile image.</p>
+  <div class="ba">
+    <div><h3>Before<span class="tag">25 calls per tile</span></h3>
+      <pre id="c1-before"></pre>
+      <p class="cap">Repeated 25 times, once per class. Each call sends the 1,280&nbsp;px tile and one 280&nbsp;px legend excerpt.</p></div>
+    <div class="after"><h3>After<span class="tag">1 call per tile</span></h3>
+      <pre id="c1-after"></pre>
+      <p class="cap">One call. The tile is sent once; all 25 legend excerpts are attached; 25 yes/no questions are answered together.</p></div>
+  </div>
+  <h3>Kept identical</h3>
+  <div class="same"><span>model jev-1.14.0</span><span>prompt v1, word for word, per class</span><span>tile image bytes (640 px ×2, Lanczos)</span><span>legend excerpt bytes (×2, padded to 280 px)</span><span>threshold 0.5</span><span>search loop untouched</span></div>
+  <h3>The 25 legend excerpts attached together in the batched call</h3>
+  <div class="strip" id="c1-strip"></div>
+</section>
+<section>
+  <h2>How it was measured</h2>
+  <p>One tile gives only 25 yes/no labels, so both methods ran on 8 non-overlapping 640&nbsp;px tiles of Freiburg centre: the baseline tile (tile&nbsp;0) and 7 random tiles drawn with seed 17. That gives 200 class–tile pairs. A class is truly present in a tile if the render-diff ground truth has at least one of its icons there.</p>
+  <figure><img id="c1-overview" alt="Freiburg centre with the 8 test tiles outlined"><figcaption>The 8 test tiles. Tile 0 is the baseline tile.</figcaption></figure>
+  <div class="tiles" id="c1-tiles"></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <div class="tablewrap"><table><thead><tr><th>Screening</th><th class="num">Accuracy @0.5</th><th class="num">AUC</th><th class="num">Missed present</th><th class="num">False present</th><th class="num">Calls</th><th class="num">Input tokens</th><th class="num">Cost</th><th class="num">Time</th></tr></thead><tbody id="c1-table"></tbody></table></div>
+  <p id="c1-agree"></p>
+  <div class="scatter"><svg id="c1-scatter" viewBox="0 0 400 400" role="img" aria-label="Scatter of P(present) single versus batch for 200 class-tile pairs"></svg>
+    <div class="key" style="justify-content:center"><span><i style="background:var(--tp)"></i>class present</span><span><i style="background:var(--absent)"></i>class absent</span><span>dashed: 0.5 thresholds and the diagonal</span></div></div>
+  <h3>Where cost goes</h3>
+  <p id="c1-tokens"></p>
+</section>
+<section>
+  <h2>Where the two disagree</h2>
+  <p>6 of 200 decisions differ at the 0.5 threshold. Five are near the threshold on both sides. One is not:</p>
+  <div class="tablewrap"><table><thead><tr><th>Tile</th><th>Class</th><th class="num">Icons in tile</th><th class="num">P single</th><th class="num">P batch</th><th>Which is right</th></tr></thead><tbody id="c1-dis"></tbody></table></div>
+  <div class="two">
+    <figure><img id="c1-ex-tile" alt="Tile 6"><figcaption id="c1-ex-cap"></figcaption></figure>
+    <figure style="max-width:220px"><img class="pix" id="c1-ex-leg" alt="Doctor legend excerpt"><figcaption>The Doctor legend excerpt sent in both versions (identical bytes).</figcaption></figure>
+  </div>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>8 tiles, all in one dense city area. The rural area isn't included yet.</li>
+    <li>The tile-6 Doctor failure shows batching can drop a class that single calls catch. One case in 200 can't tell us how often this happens.</li>
+    <li>Time is the sum of per-call latencies recorded when each call was first made, run sequentially. Single calls run in parallel would close the time gap, but not the cost gap.</li>
+    <li>Both methods miss about 1 in 5 present classes on these tiles, against 2 in 20 on the baseline tile. Screening recall is a problem whichever method is used.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 2 ======================= -->
+<div class="panel" id="panel-change-2" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c2-meta"></div>
+  <p class="verdict" id="c2-verdict"></p>
+  <div class="stats" id="c2-stats"></div>
+</div>
+<section>
+  <h2>What changed</h2>
+  <p>A new step after the search loop. The loop itself is unchanged and wasn't rerun; this uses the baseline run's 94 detections.</p>
+  <div class="ba">
+    <div><h3>Before<span class="tag">loop output is final</span></h3>
+      <pre id="c2-before"></pre></div>
+    <div class="after"><h3>After<span class="tag">+1 Choice call per detection</span></h3>
+      <pre id="c2-after"></pre></div>
+  </div>
+  <h3>The crop</h3>
+  <p>40 × 40&nbsp;px of the <em>original</em> tile (before any inpainting), centred on the detection point, enlarged ×8 to 320&nbsp;px. The icon sits in the middle with some surrounding context.</p>
+  <h3>The 26 options Jev chooses between</h3>
+  <p>The 25 legend excerpts as image options, the same ×8 excerpts the loop used, plus a text option, "none of these", described as background, text or another symbol.</p>
+  <div class="strip" id="c2-options"></div>
+  <h3>Keep rules</h3>
+  <div class="tablewrap"><table><thead><tr><th>Rule</th><th>Keep a detection when Jev picks…</th></tr></thead><tbody>
+    <tr><td><b>strict</b> (as run)</td><td>its own class only. "None of these" or another class → removed.</td></tr>
+    <tr><td><b>gentle</b> (same answers, re-scored)</td><td>its own class or "none of these". Another legend class → removed.</td></tr>
+  </tbody></table></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Scored on the baseline tile's 89 true icons, same rule as before: one-to-one, same class, within 7&nbsp;px.</p>
+  <div class="tablewrap"><table><thead><tr><th></th><th class="num">Detections</th><th class="num">Correct</th><th class="num">False pos.</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody id="c2-table"></tbody></table></div>
+  <p id="c2-cost"></p>
+</section>
+<section>
+  <h2>Every detection the check touched</h2>
+  <p>The 20 baseline false positives and the 6 correct detections the strict rule removed. Each card reads top to bottom: what the loop claimed, how that claim was scored against the ground truth, the crop Jev saw and what it chose, and what the check did as a result. The card colour shows only that final outcome.</p>
+  <div class="key"><span><i style="background:var(--tp)"></i>check got it right (wrong detection removed)</span><span><i style="background:var(--fp)"></i>check missed it (wrong detection kept)</span><span><i style="background:var(--fn)"></i>check got it wrong (correct detection removed)</span></div>
+  <div class="cards" id="c2-cards"></div>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>One tile, 94 detections. The removals are clear-cut cases, but the precision and recall figures come from a small sample.</li>
+    <li>The gentle rule was chosen after looking at these same answers, so its numbers are optimistic until tested on new tiles.</li>
+    <li>The 40 px crop is wide enough to include neighbours; <a href="#change-3">Change 3</a> tests tighter crops.</li>
+    <li>Jev confirmed the two Fitness station "hallucinations" at 0.93–0.95. They were Dance icons, a class missing from our legend: see <a href="#change-4">Change 4</a>.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 3 ======================= -->
+<div class="panel" id="panel-change-3" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c3-meta"></div>
+  <p class="verdict" id="c3-verdict"></p>
+  <div class="stats" id="c3-stats"></div>
+</div>
+<section>
+  <h2>What changed</h2>
+  <p>Only the crop image in the Choice check from <a href="#change-2">Change 2</a>. The detections (the same 94 from the baseline), the question, the 26 options and both keep rules are unchanged.</p>
+  <div class="ba">
+    <div><h3>Before<span class="tag">wide · Change 2</span></h3>
+      <pre>40 × 40 px of the original tile,
+centred on the detection point,
+enlarged ×8 → 320 × 320 px.
+
+The icon is 6–14 px, so most of the
+crop is surroundings, often including
+neighbouring icons and labels.</pre></div>
+    <div class="after"><h3>After<span class="tag">two tighter variants</span></h3>
+      <pre>box:  Jev's own loop box + 3 px margin
+      (median 18.5 × 20 px), ×8,
+      padded to ≥ 280 px with land colour
+sq20: 20 × 20 px around the point, ×8
+      (160 px), padded to 280 px
+
+Padding mirrors how the legend options
+are made, so the icon appears at the
+same scale in the crop and the options.</pre></div>
+  </div>
+  <h3>One detection, three crops</h3>
+  <p id="c3-ex-text"></p>
+  <div class="tiles" id="c3-example"></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Same 89 true icons, same matching rule (one-to-one, same class, ≤ 7 px).</p>
+  <div class="tablewrap"><table><thead><tr><th>Crop</th><th>Rule</th><th class="num">Detections</th><th class="num">FP removed</th><th class="num">Correct lost</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody id="c3-table"></tbody></table></div>
+  <p id="c3-cost"></p>
+  <h3>What the per-detection answers show</h3>
+  <ul id="c3-findings"></ul>
+</section>
+<section>
+  <h2>Every detection where any crop disagreed</h2>
+  <p>All 20 baseline false positives, plus every correct detection that at least one crop rejected. Each card shows what the loop claimed, how that claim was scored against the ground truth, then the three crops Jev saw (wide, box, sq20) with Jev's answer under each. The colour under each answer shows whether the strict rule did the right thing with that crop: remove a wrong detection, keep a correct one.</p>
+  <div class="key"><span><i style="background:var(--tp)"></i>right outcome for this crop</span><span><i style="background:var(--fp)"></i>wrong outcome for this crop</span></div>
+  <div class="cards" id="c3-cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))"></div>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>94 detections on one tile. The best F1 gain (+0.017) is about two detections, so it is within noise.</li>
+    <li>The margin (3 px) and square size (20 px) were picked once and not tuned.</li>
+    <li>Choice answers changed between crops for many correct detections, so a single Choice call is a noisy filter. A vote across crops is a possible follow-up.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 4 ======================= -->
+<div class="panel" id="panel-change-4" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c4-meta"></div>
+  <p class="verdict">The two Fitness "hallucinations" were Dance icons: a different figure in the same green, which wasn't in our legend. With Dance added, each single-symbol search loop still fires on both figures. Asked to choose between the two legend symbols, Jev separated them perfectly: 0 confusions across all 26 Fitness and Dance icons in Freiburg centre.</p>
+  <div class="stats" id="c4-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>On the baseline tile, two Fitness station detections had no Fitness icon nearby, yet Jev confirmed them as Fitness in every crop (<a href="#change-3">Change 3</a>). Looking at them shows a different figure: openstreetmap-carto's <b>Dance</b> icon (<code>leisure=dance</code>), drawn in exactly the same green (<code>#0c8416</code>) at the same size. Dance wasn't one of our 25 classes, so the ground truth didn't record it, and the Choice check had no Dance option to pick.</p>
+  <div class="tiles" id="c4-why"></div>
+</section>
+<section>
+  <h2>What changed</h2>
+  <div class="ba">
+    <div><h3>Before<span class="tag">25 classes</span></h3><pre>classes:   25 (no Dance)
+legend:    25 entries
+truth:     89 icons on the tile
+Dance icons: invisible to scoring,
+           so a Fitness detection on
+           one is "nothing there"
+Choice:    25 options + none</pre></div>
+    <div class="after"><h3>After<span class="tag">26 classes · config osm_phase1_dance</span></h3><pre>classes:   26 (+ Dance, leisure/dance.svg)
+legend:    26 entries, re-read by Opus
+truth:     91 icons on the tile (+2 Dance)
+Dance loop: forced on (screening said 0.42,
+           below the 0.5 threshold)
+Choice:    26 options + none, tight crop
+           (Jev's box + 3 px, ×8, padded)</pre></div>
+  </div>
+  <p id="c4-same"></p>
+</section>
+<section>
+  <h2>On the tile: who claimed what</h2>
+  <p>Every Fitness and Dance detection on the tile. The search loop only ever sees one legend symbol and asks "is there one like this?", so each loop fired on <em>both</em> figures. The Choice check sees both symbols side by side and puts each detection in the right class.</p>
+  <div class="cards" id="c4-dets" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr))"></div>
+  <div class="tablewrap"><table><thead><tr><th>Whole tile, 26 classes</th><th class="num">Detections</th><th class="num">Correct</th><th class="num">False pos.</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody id="c4-table"></tbody></table></div>
+  <p class="cap">The ground truth now has 91 icons on the tile instead of 89, so these figures aren't directly comparable with Changes 2–3. The Change 3 best (25 classes, box crop, strict) was precision 0.908, recall 0.775, F1 0.836.</p>
+</section>
+<section>
+  <h2>Across Freiburg centre: every Fitness and Dance icon</h2>
+  <p>Each of the 19 Fitness and 7 Dance icons in the area's ground truth was cropped from its true box (+3&nbsp;px, ×8, padded) and asked twice: once against all 26 legend options plus "none", and once as a direct two-way choice between Fitness and Dance (plus "none").</p>
+  <div class="tablewrap"><table><thead><tr><th>Question</th><th>True class</th><th class="num">Icons</th><th class="num">Correct</th><th class="num">Called the other one</th><th class="num">"None of these"</th><th class="num">Another class</th></tr></thead><tbody id="c4-conf"></tbody></table></div>
+  <div class="cards" id="c4-icons" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,130px),1fr))"></div>
+</section>
+<section>
+  <h2>What this tells us</h2>
+  <ul>
+    <li><b>A single-symbol "is there one like this?" question is permissive.</b> Two different figures in the same colour both pass, even though the prompt says "same shape and colour". The loop is a good candidate finder, but it doesn't settle the class.</li>
+    <li><b>A comparison between legend symbols settles it.</b> With both symbols available as options, Jev never confused them: 0 of 26 icons swapped, with probabilities of 0.97–0.99 on the tile's detections. So the pipeline should look for candidates per class, then let a Choice among <em>all</em> legend symbols decide the class.</li>
+    <li><b>Screening missed Dance</b> (P = 0.42 with 2 Dance icons on the tile), the third present class screened out on this tile after Bust and Shelter. The screening threshold or prompt needs work.</li>
+    <li><b>A missing legend class looks like a hallucination.</b> When the legend handed to the method is incomplete, its errors land on the nearest look-alike. On real maps with incomplete legends this will matter.</li>
+  </ul>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>26 icons area-wide and 8 detections on the tile: a clear result, but a small sample of one look-alike pair.</li>
+    <li>The Dance loop was forced on, past the screening result, so this tile's recall assumes screening worked.</li>
+    <li>The label "Fitness station" is too narrow: the same icon also marks gyms (<code>fitness_centre</code>). It was kept unchanged so that only one thing changed here.</li>
+    <li>One Dance icon was called "Charging station" in the 26-way question (but Dance in the two-way one), and one Fitness icon "none of these" in both.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 5 ======================= -->
+<div class="panel" id="panel-change-5" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c5-meta"></div>
+  <p class="verdict" id="c5-verdict"></p>
+  <div class="stats" id="c5-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>An audit of the stylesheet (<code>mapdig icon-audit</code>, see <code>docs/research/icon-audit.md</code>) listed every tag and appearance that renders to each of our icons. Two gaps came out of it:</p>
+  <ul>
+    <li><b>Names narrower than the icons.</b> For example, the "Doctor" icon also marks clinics, the "Fitness" icon is mostly gyms, and the "Memorial" icon in Freiburg is overwhelmingly Stolpersteine.</li>
+    <li><b>Appearance variants missing from the legend.</b> Access-restricted features are drawn at 33% opacity. <b>61% of the Parking icons drawn in Freiburg centre are this faded version.</b> Picnic tables use the picnic icon in grey, not green.</li>
+  </ul>
+</section>
+<section>
+  <h2>What changed</h2>
+  <div class="ba">
+    <div><h3>Before<span class="tag">Change 4 · 26 classes, 26 legend rows</span></h3><pre>one legend row per class, drawn in the
+class's default appearance
+names: Doctor, Fitness station, Memorial,
+       Picnic site, Church (Christian), Dance
+ground truth: one label per icon
+Dance search loop forced on</pre></div>
+    <div class="after"><h3>After<span class="tag">Change 5 · 26 classes, 31 legend rows</span></h3><pre>+5 legend rows, one per appearance variant
+  drawn in the area (faded restricted access,
+  grey picnic table), each scored as its class
+search loop runs per legend row, merged by class
+Choice: 31 legend rows + none; a pick counts
+  for that row's class
+ground truth records each icon's appearance
+Dance not forced (screening decides)</pre></div>
+  </div>
+  <h3>Renamed classes</h3>
+  <div class="tablewrap"><table><thead><tr><th>Icon file</th><th>Before</th><th>After</th></tr></thead><tbody id="c5-renames"></tbody></table></div>
+  <h3>New legend rows, next to their base row</h3>
+  <div class="cards" id="c5-variants" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))"></div>
+  <p id="c5-same"></p>
+  <figure style="max-width:520px"><img class="pix" id="c5-sheet" alt="The 31-row legend sheet"><figcaption>The new legend sheet (31 rows) that Opus read.</figcaption></figure>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Same tile and same 91 true icons as <a href="#change-4">Change 4</a>, so the two tabs compare directly.</p>
+  <div class="tablewrap"><table><thead><tr><th>Stage</th><th class="num">Change 4 F1</th><th class="num">Change 5 detections</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody id="c5-table"></tbody></table></div>
+  <h3>Recall by appearance</h3>
+  <div class="tablewrap"><table><thead><tr><th>Class</th><th>Appearance</th><th class="num">On tile</th><th class="num">Change 4 found</th><th class="num">Change 5 loop</th><th class="num">after Choice (gentle)</th></tr></thead><tbody id="c5-apps"></tbody></table></div>
+  <p class="cap">Change 4 didn't record appearance. Its per-appearance figure comes from the baseline Parking analysis: 2 of 2 full colour and 1 of 4 faded.</p>
+</section>
+<section>
+  <h2>What else moved</h2>
+  <ul id="c5-moved"></ul>
+  <h3>Correct detections the strict rule removed</h3>
+  <div class="tablewrap"><table><thead><tr><th>Class</th><th>Jev picked</th><th class="num">P(own class)</th><th class="num">P(none)</th></tr></thead><tbody id="c5-lost"></tbody></table></div>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>Names and legend rows changed together, so their effects can't be separated in this run. In particular, the Doctor → Pharmacy regression could come from either.</li>
+    <li>One tile with 6 Parking icons. The faded-variant fix (1/4 → 4/4) is clear, but the sample is small.</li>
+    <li>The extra legend rows add their own screening and search calls, plus 6 more options in every Choice call.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 6 ======================= -->
+<div class="panel" id="panel-change-6" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c6-meta"></div>
+  <p class="verdict">Hiding the legend names helps the search loop. With the word "Pharmacy" in the prompt, the Pharmacy loop kept claiming Doctor icons; with an arbitrary code it mostly stopped. For the final class decision the evidence is mixed: codes did better on every medical icon in the area, names did better in the tile Choice check, and about a third of icons got a different answer under the two conditions.</p>
+  <div class="stats" id="c6-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>Change 5's Choice check began answering "Pharmacy" for Doctor icons. The question was whether the words themselves pull Jev's answer, through what a doctor, pharmacy or hospital means, rather than the symbols' shapes.</p>
+</section>
+<section>
+  <h2>What changed</h2>
+  <p>Only the text Jev sees as each legend row's label. Every image, crop, tile, prompt template and threshold is identical between the two conditions. The scoring class is never changed.</p>
+  <div class="ba">
+    <div><h3>names<span class="tag">as in Change 5</span></h3><pre>Does `map` contain at least one instance of the map
+symbol shown in this legend excerpt [legend image],
+which the legend labels 'Pharmacy'? ...
+
+Choice options: "Doctor / clinic", "Pharmacy",
+"Hospital", ... (31 legend rows) + "none of these"</pre></div>
+    <div class="after"><h3>codes<span class="tag">change 6</span></h3><pre id="c6-codes-pre"></pre></div>
+  </div>
+  <p class="cap">Codes come from a fixed shuffled order (seed 17) over the 31 legend rows, so the numbers carry no order or meaning.</p>
+  <h3>Where it was tested</h3>
+  <p>The medical classes only (Doctor / clinic, Pharmacy, Hospital). Freiburg centre was cut into non-overlapping 640&nbsp;px tiles. Every tile with a Hospital was taken, then the tiles with the most medical icons, up to 8 tiles. On each tile, screening and the search loop ran for the three medical classes. The Choice check then compared every detection against all 31 legend rows. Separately, every medical icon in Freiburg centre (119) was cropped from its true box and asked the 31-row Choice under both conditions.</p>
+  <div class="tiles" id="c6-tiles"></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <div class="tablewrap"><table><thead><tr><th>Step</th><th>Measure</th><th class="num">names</th><th class="num">codes</th></tr></thead><tbody id="c6-table"></tbody></table></div>
+  <h3>Search loop: wrong claims by class</h3>
+  <p id="c6-loopfp"></p>
+  <h3>Class decision on all 119 medical icons</h3>
+  <div class="tablewrap"><table><thead><tr><th>True class</th><th>names: what Jev picked</th><th>codes: what Jev picked</th></tr></thead><tbody id="c6-conf"></tbody></table></div>
+  <p id="c6-agree"></p>
+  <h3>Icons the two conditions disagree on</h3>
+  <div class="two">
+    <div><p class="cap">Codes right, names wrong</p><div class="cards" id="c6-flip-n" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))"></div></div>
+    <div><p class="cap">Names right, codes wrong</p><div class="cards" id="c6-flip-c" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))"></div></div>
+  </div>
+  <h3>Correct tile detections the Choice check removed (strict)</h3>
+  <p id="c6-lost"></p>
+</section>
+<section>
+  <h2>What this tells us</h2>
+  <ul>
+    <li><b>Names leak meaning into the yes/no search question.</b> "Is there a Pharmacy here?" was answered yes on Doctor icons: same red-cross family, related meaning. A code made Jev rely on the picture, and wrong Pharmacy claims fell from 11 to 3. A sensible default is to search with codes.</li>
+    <li><b>Names can also mislead the class decision.</b> On the 119-icon test, names produced 12 "Doctor / clinic → Hospital" answers (clinic is close in meaning to hospital); codes produced none.</li>
+    <li><b>But one Choice answer is noisy.</b> Codes, in turn, sent 8 correct tile Doctors to "Museum" and lost more Pharmacies. Answers flipped between conditions on about a third of the icons. The class decision needs more than one look, such as a vote over two crops or two option orders, before the choice of names or codes for it can be settled.</li>
+    <li><b>Screening was unaffected</b> (20 of 24 correct both ways).</li>
+  </ul>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>Medical classes on 8 tiles and 119 icons in one city: three look-alike symbols, a small slice of the legend.</li>
+    <li>The loop detections differ between conditions, so the tile Choice check judges different crops in each. The 119-icon test is the like-for-like comparison.</li>
+    <li>"Doctor / clinic → Museum" appears under both conditions. It may be a quirk of how the red doctor's-bag icon compares with the museum's columned building at this size, and needs a look.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 7 ======================= -->
+<div class="panel" id="panel-change-7" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c7-meta"></div>
+  <p class="verdict" id="c7-verdict"></p>
+  <div class="stats" id="c7-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>Asking Jev the identical question 30 times showed it is not deterministic: on hard icons it gives the right class about 3 times in 4, and the wrong answers scatter across several classes. Right answers almost always come with a top probability near 1.00, while wrong ones are usually lower (median about 0.8), though about a quarter of wrong answers are still near 1.00. So a low-confidence answer is worth asking again, and a majority vote should pick the right class.</p>
+</section>
+<section>
+  <h2>What changed</h2>
+  <p>Only how many times the Choice question is asked, and how the answers are combined. The detections, crops, 31 legend options, names and prompt are exactly Change 5's. The repeated requests are byte-identical; the first call of each detection is Change 5's own stored answer.</p>
+  <div class="ba">
+    <div><h3>Before<span class="tag">Change 5</span></h3><pre>one Choice call per detection
+class = Jev's pick in that call</pre></div>
+    <div class="after"><h3>After<span class="tag">adaptive, threshold 0.95</span></h3><pre>call 1: if top probability >= 0.95, keep it
+otherwise ask 2 more times (3 answers);
+  class = the one picked at least 2 times
+  no class twice? ask 2 more, vote over 5
+ties broken by summed probability</pre></div>
+  </div>
+  <p class="cap">For comparison, the same detections were also decided by a 3-call and a 5-call majority vote on every detection.</p>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Same tile, same 96 detections from the search loop, same 91 true icons as Change 5.</p>
+  <div class="tablewrap"><table><thead><tr><th>Class decision</th><th class="num">Jev calls</th><th class="num">Cost</th><th class="num">Strict P / R</th><th class="num">Strict F1</th><th class="num">Gentle P / R</th><th class="num">Gentle F1</th></tr></thead><tbody id="c7-table"></tbody></table></div>
+  <h3>Detections whose class decision changed</h3>
+  <p>Each card shows the five answers in order (call 1 is Change 5's answer) and what each method decided.</p>
+  <div class="cards" id="c7-cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))"></div>
+</section>
+<section>
+  <h2>What this tells us</h2>
+  <ul id="c7-tells"></ul>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>One tile, 96 detections: the methods differ by 1 to 6 correct detections, a small sample.</li>
+    <li>The 0.95 threshold was chosen from the medical-icon test, not tuned on this tile; other values weren't tried here.</li>
+    <li>This changes only the class decision. Detections the search loop never made can't be recovered by it.</li>
+  </ul>
+</section>
+</div>
+
+<!-- ======================= TAB: CHANGE 8 ======================= -->
+<div class="panel" id="panel-change-8" role="tabpanel" hidden>
+<div class="phead">
+  <div class="meta" id="c8-meta"></div>
+  <p class="verdict" id="c8-verdict"></p>
+  <div class="stats" id="c8-stats"></div>
+</div>
+<section>
+  <h2>Why</h2>
+  <p>Map symbols are drawn in a few colours, while most of the map (roads, buildings, land) is drawn in others. If Jev only sees the pixels that could belong to the symbol it is looking for, the rest of the map can't distract it. The legend already gives us the symbols, so it can also give us their colours.</p>
+</section>
+<section>
+  <h2>What changed</h2>
+  <div class="ba">
+    <div><h3>Before<span class="tag">Change 5 / 7</span></h3><pre>screening:  whole tile, as rendered
+search:     sub-tiles, as rendered
+legend:     symbol on the legend's background
+Choice:     unchanged crop</pre></div>
+    <div class="after"><h3>After<span class="tag">per legend row</span></h3><pre>Opus lists the minimal colour palette of each
+  legend symbol (any number of colours)
+screening, search and the legend excerpt see the
+  image masked to that row's palette: pixels within
+  delta E 12 of a palette colour are kept, the rest
+  painted white
+Choice:     unchanged crop (not masked)</pre></div>
+  </div>
+  <h3>Two rules the first tests forced</h3>
+  <ul>
+    <li><b>Palette colours near the paint colour are dropped from the keep list.</b> Opus listed white for the red crosses and Traffic signals. Since masked-out pixels are painted white anyway, those parts still look right, but keeping white let every road through (up to 80% of the tile).</li>
+    <li><b>Blended edge pixels must be kept too ("unmix").</b> Thin-line symbols are mostly pixels blended with the background. Keeping only near-exact palette colours broke the Supermarket cart into fragments. The unmix mask also keeps a pixel when it lies on the blend between a palette colour and the local background (median of a 15 px window), with at least 20% palette share, next to the symbol.</li>
+  </ul>
+  <h3>What Jev sees</h3>
+  <div class="tiles" id="c8-tiles"></div>
+</section>
+<section>
+  <h2>The palettes Opus read</h2>
+  <p id="c8-pal-note"></p>
+  <div class="tablewrap"><table><thead><tr><th>Legend row</th><th>Opus palette</th><th>Kept</th><th>Legend symbol</th><th>Masked (core)</th><th>Masked (unmix)</th></tr></thead><tbody id="c8-pal"></tbody></table></div>
+</section>
+<section>
+  <h2>Result</h2>
+  <p>Same tile, same 91 true icons, same Choice check and "ask again when unsure" rule as Change 7.</p>
+  <div class="tablewrap"><table><thead><tr><th>Step</th><th>Measure</th><th class="num">no mask (Change 7)</th><th class="num">core mask</th><th class="num">unmix mask</th></tr></thead><tbody id="c8-table"></tbody></table></div>
+  <h3>Classes that changed: found / detections</h3>
+  <p class="cap">Search loop only, before the class check. <b>Detections</b>: points the loop placed for that class. <b>Found</b>: those that landed on a real icon of the class (within 7 px). The difference is wrong detections. Statue "1 / 6" means the one real statue was found, plus 5 wrong points.</p>
+  <div class="tablewrap"><table><thead><tr><th>Class</th><th class="num">On tile</th><th class="num">no mask</th><th class="num">core mask</th><th class="num">unmix mask</th></tr></thead><tbody id="c8-per"></tbody></table></div>
+</section>
+<section>
+  <h2>Run to run: three runs of each</h2>
+  <p>Jev doesn't give the same answer twice (Change 7), so one run can mislead. Both versions were run three times on this tile, with byte-identical requests; only the cache key carried the run number. Run 1 is the result above. Faded "restricted access" icons are left out (they are on hold): 87 true icons.</p>
+  <div class="tablewrap"><table><thead><tr><th>Run</th><th class="num">no mask: loop F1</th><th class="num">no mask: F1 after class check</th><th class="num">unmix mask: loop F1</th><th class="num">unmix mask: F1 after class check</th></tr></thead><tbody id="c8-noise"></tbody></table></div>
+  <div class="tablewrap"><table><thead><tr><th>Measure</th><th class="num">no mask</th><th class="num">unmix mask</th></tr></thead><tbody id="c8-noise2"></tbody></table></div>
+  <p class="cap">"Box centre spread": for an icon found in two or more runs, the largest distance of a run's detection from their average position.</p>
+</section>
+<section>
+  <h2>What this tells us</h2>
+  <ul>
+    <li><b>Masking fixes screening.</b> Unmasked, screening missed Bust, Shelter and Dance venue on this tile. With the unmix mask it missed only Shelter. Bust and both Dance icons were found without forcing.</li>
+    <li><b>Masking removes clutter-driven false claims.</b> Search-loop wrong claims fell from 19 to 14 (Statue 5 → 1, Pharmacy 2 → 0, Fitness 2 → 1), though a new wrong Doctor appeared.</li>
+    <li><b>Averaged over three runs, the mask helps the search loop and ties after the class check.</b> The single-run comparison above made the mask look worse, but the first unmasked run was its best of three. The Memorial and Traffic-signal "losses" were mostly that luck: the unmasked search finds Traffic signals in some runs and not others.</li>
+    <li><b>The mask makes the search much more stable.</b> Loop F1 varied by 0.012 across masked runs against 0.052 unmasked. Icons found only sometimes: 6 masked against 10 unmasked, mostly Traffic signals.</li>
+    <li><b>Box placement is not the noisy part.</b> When an icon is found, its centre moves only about half a pixel between runs. The variation comes from the yes/no answers that decide whether the loop keeps going.</li>
+    <li><b>Anti-aliasing is essential.</b> The core-colour mask lost every Supermarket and half the Traffic signals. Any mask has to keep blended edge pixels, which will matter even more on scans.</li>
+  </ul>
+</section>
+<section>
+  <h2>Caveats</h2>
+  <ul>
+    <li>One tile and three runs each; a handful of icons decide the differences.</li>
+    <li>Tolerance (12), blend share (20%) and window (15 px) were set from legend checks and a look at this tile, not tuned on separate tiles.</li>
+    <li>The faded "restricted access" rows keep pale colours close to the land colours. Faded Drinking water keeps only about a quarter of each icon. There are no faded icons on this tile, so this run doesn't test them.</li>
+    <li>Traffic signals are the least stable class in both versions. They sit in tight clusters on grey roads.</li>
+  </ul>
+</section>
+</div>
+
+<footer>
+  <span>Ground truth: render diff of openstreetmap-carto v5.9.0, OSM snapshot 2026-11-18T21:21:02Z. Jev <code>jev-1.14.0</code>, prompt v1. Legend reader <code>claude-opus-5-5</code>.</span>
+  <span>Every model call is cached by the content of its request; all tabs regenerate offline with <code>mapdig runlog</code>.</span>
+</footer>
+</div>
+
+<script>
+const D = {"tabs":[{"id":"run-1","title":"Run 1 \u00b7 baseline","date":"2026-11-20"},{"id":"change-1","title":"Change 1 \u00b7 batched screening","date":"2026-11-20"},{"id":"change-2","title":"Change 2 \u00b7 Choice check","date":"2026-11-20"},{"id":"change-3","title":"Change 3 \u00b7 tighter crops","date":"2026-11-20"},{"id":"change-4","title":"Change 4 \u00b7 Fitness vs Dance","date":"2026-11-20"},{"id":"change-5","title":"Change 5 \u00b7 full names + variants","date":"2026-11-20"},{"id":"change-6","title":"Change 6 \u00b7 names vs codes","date":"2026-11-20"},{"id":"change-7","title":"Change 7 \u00b7 ask again when unsure","date":"2026-11-20"},{"id":"change-8","title":"Change 8 \u00b7 colour mask","date":"2026-11-20"}],"base":{"tile":{"x":1856,"y":960,"px":640,"map":"out/osm_phase1/maps/freiburg_centre/z17_s1/map.tif","metres_per_px_web_mercator":1.19432856695641,"ground_m_approx":511,"classes_present":20,"icons_present":89},"metrics":{"tp":74,"fp":20,"fn":15,"precision":0.787,"recall":0.831,"f1":0.809,"median_err_px":1.48,"median_err_m_ground":1.18,"per_class":{"Artwork":{"true":4,"pred":4,"tp":4},"Bicycle rental":{"true":3,"pred":3,"tp":3},"Bus stop":{"true":1,"pred":1,"tp":1},"Bust":{"true":1,"pred":0,"tp":0},"Charging station":{"true":4,"pred":4,"tp":3},"Church (Christian)":{"true":1,"pred":3,"tp":1},"Doctor":{"true":8,"pred":8,"tp":8},"Drinking water":{"true":1,"pred":1,"tp":1},"Fitness station":{"true":2,"pred":4,"tp":2},"Hotel":{"true":8,"pred":8,"tp":7},"Memorial":{"true":21,"pred":22,"tp":20},"Museum":{"true":1,"pred":1,"tp":1},"Parking":{"true":6,"pred":3,"tp":3},"Pharmacy":{"true":2,"pred":4,"tp":2},"Playground":{"true":1,"pred":1,"tp":1},"Shelter":{"true":1,"pred":0,"tp":0},"Statue":{"true":1,"pred":6,"tp":1},"Supermarket":{"true":4,"pred":4,"tp":4},"Taxi rank":{"true":1,"pred":2,"tp":1},"Traffic signals":{"true":18,"pred":15,"tp":11}}},"cost":{"jev_calls":569,"jev_input_tokens":2885382,"jev_usd":0.1212,"opus_usd":0.0226,"total_usd":0.1438,"api_new_calls":0,"api_cache_hits":569},"timing_s":{"screening":0.8,"search_loop":189.9},"legend":{"model":"claude-opus-5-5","entries_read":25,"entries_true":25,"classes_covered":25,"labels_exact":25,"median_iou_read":0.882,"median_iou_crop":1.0,"input_tokens":2751,"output_tokens":580,"cost_usd":0.0226,"latency_s":8.921,"cache_key":"74819265918f3462921ffcededb82f1c6699a92de52e641b1c648547b3c712ff"},"screening":[{"label":"Memorial","p_present":0.65,"n_true":21,"screened_in":true},{"label":"Statue","p_present":0.91,"n_true":1,"screened_in":true},{"label":"Bust","p_present":0.44,"n_true":1,"screened_in":false},{"label":"Artwork","p_present":0.94,"n_true":4,"screened_in":true},{"label":"Museum","p_present":0.83,"n_true":1,"screened_in":true},{"label":"Viewpoint","p_present":0.24,"n_true":0,"screened_in":false},{"label":"Shelter","p_present":0.16,"n_true":1,"screened_in":false},{"label":"Picnic site","p_present":0.24,"n_true":0,"screened_in":false},{"label":"Hotel","p_present":0.94,"n_true":8,"screened_in":true},{"label":"Guest house","p_present":0.41,"n_true":0,"screened_in":false},{"label":"Chalet","p_present":0.03,"n_true":0,"screened_in":false},{"label":"Doctor","p_present":0.8,"n_true":8,"screened_in":true},{"label":"Pharmacy","p_present":0.64,"n_true":2,"screened_in":true},{"label":"Hospital","p_present":0.33,"n_true":0,"screened_in":false},{"label":"Parking","p_present":0.92,"n_true":6,"screened_in":true},{"label":"Bus stop","p_present":0.74,"n_true":1,"screened_in":true},{"label":"Bicycle rental","p_present":0.72,"n_true":3,"screened_in":true},{"label":"Charging station","p_present":0.66,"n_true":4,"screened_in":true},{"label":"Taxi rank","p_present":0.86,"n_true":1,"screened_in":true},{"label":"Playground","p_present":0.89,"n_true":1,"screened_in":true},{"label":"Fitness station","p_present":0.83,"n_true":2,"screened_in":true},{"label":"Church (Christian)","p_present":0.71,"n_true":1,"screened_in":true},{"label":"Traffic signals","p_present":0.93,"n_true":18,"screened_in":true},{"label":"Drinking water","p_present":0.65,"n_true":1,"screened_in":true},{"label":"Supermarket","p_present":0.93,"n_true":4,"screened_in":true}],"actions":{"detect + inpaint":94,"stop: not present":448,"stop: box on removed area":2},"manifest":{"commit":"7ee487b","dirty":true,"started":"2026-11-20T13:42:06+00:00"},"images":{"overview":"img/b_overview.jpg","tile":"img/b_tile.png","result":"img/b_result.jpg","legend_sheet":"img/b_legend_sheet.png","legend_read":"img/b_legend_read.png","memorial_after":"img/b_memorial_after.png"},"crops":[{"label":"Memorial","img":"img/b_crop_00.png","iou_read":0.924,"iou_crop":1.0},{"label":"Statue","img":"img/b_crop_01.png","iou_read":0.703,"iou_crop":1.0},{"label":"Bust","img":"img/b_crop_02.png","iou_read":0.849,"iou_crop":1.0},{"label":"Artwork","img":"img/b_crop_03.png","iou_read":0.862,"iou_crop":1.0},{"label":"Museum","img":"img/b_crop_04.png","iou_read":0.973,"iou_crop":1.0},{"label":"Viewpoint","img":"img/b_crop_05.png","iou_read":0.952,"iou_crop":1.0},{"label":"Shelter","img":"img/b_crop_06.png","iou_read":0.911,"iou_crop":1.0},{"label":"Picnic site","img":"img/b_crop_07.png","iou_read":0.882,"iou_crop":1.0},{"label":"Hotel","img":"img/b_crop_08.png","iou_read":0.8,"iou_crop":1.0},{"label":"Guest house","img":"img/b_crop_09.png","iou_read":0.911,"iou_crop":1.0},{"label":"Chalet","img":"img/b_crop_10.png","iou_read":0.911,"iou_crop":1.0},{"label":"Doctor","img":"img/b_crop_11.png","iou_read":0.904,"iou_crop":1.0},{"label":"Pharmacy","img":"img/b_crop_12.png","iou_read":0.842,"iou_crop":1.0},{"label":"Hospital","img":"img/b_crop_13.png","iou_read":0.911,"iou_crop":1.0},{"label":"Parking","img":"img/b_crop_14.png","iou_read":0.81,"iou_crop":1.0},{"label":"Bus stop","img":"img/b_crop_15.png","iou_read":0.756,"iou_crop":1.0},{"label":"Bicycle rental","img":"img/b_crop_16.png","iou_read":0.86,"iou_crop":1.0},{"label":"Charging station","img":"img/b_crop_17.png","iou_read":0.886,"iou_crop":1.0},{"label":"Taxi rank","img":"img/b_crop_18.png","iou_read":0.933,"iou_crop":1.0},{"label":"Playground","img":"img/b_crop_19.png","iou_read":0.866,"iou_crop":1.0},{"label":"Fitness station","img":"img/b_crop_20.png","iou_read":0.908,"iou_crop":1.0},{"label":"Church (Christian)","img":"img/b_crop_21.png","iou_read":0.848,"iou_crop":1.0},{"label":"Traffic signals","img":"img/b_crop_22.png","iou_read":0.618,"iou_crop":1.0},{"label":"Drinking water","img":"img/b_crop_23.png","iou_read":0.879,"iou_crop":1.0},{"label":"Supermarket","img":"img/b_crop_24.png","iou_read":0.888,"iou_crop":1.0}],"frames":[{"label":"Memorial","sub":[0,0],"pass":1,"p_present":0.91,"box_conf":0.43,"match":"TP","before":"img/b_frame00_a.jpg","after":"img/b_frame00_b.jpg"},{"label":"Memorial","sub":[0,0],"pass":2,"p_present":0.96,"box_conf":0.29,"match":"TP","before":"img/b_frame01_a.jpg","after":"img/b_frame01_b.jpg"},{"label":"Statue","sub":[480,0],"pass":1,"p_present":0.71,"box_conf":0.87,"match":"FP","before":"img/b_frame02_a.jpg","after":"img/b_frame02_b.jpg"},{"label":"Statue","sub":[120,360],"pass":1,"p_present":0.77,"box_conf":0.36,"match":"FP","before":"img/b_frame03_a.jpg","after":"img/b_frame03_b.jpg"},{"label":"Doctor","sub":[0,0],"pass":1,"p_present":0.95,"box_conf":0.92,"match":"TP","before":"img/b_frame04_a.jpg","after":"img/b_frame04_b.jpg"},{"label":"Doctor","sub":[360,0],"pass":1,"p_present":0.95,"box_conf":0.92,"match":"TP","before":"img/b_frame05_a.jpg","after":"img/b_frame05_b.jpg"},{"label":"Doctor","sub":[120,120],"pass":1,"p_present":0.96,"box_conf":0.98,"match":"TP","before":"img/b_frame06_a.jpg","after":"img/b_frame06_b.jpg"},{"label":"Fitness station","sub":[120,0],"pass":1,"p_present":0.94,"box_conf":0.97,"match":"TP","before":"img/b_frame07_a.jpg","after":"img/b_frame07_b.jpg"},{"label":"Fitness station","sub":[0,240],"pass":1,"p_present":0.9,"box_conf":0.87,"match":"FP","before":"img/b_frame08_a.jpg","after":"img/b_frame08_b.jpg"},{"label":"Traffic signals","sub":[120,240],"pass":1,"p_present":0.66,"box_conf":0.76,"match":"TP","before":"img/b_frame09_a.jpg","after":"img/b_frame09_b.jpg"},{"label":"Traffic signals","sub":[240,240],"pass":1,"p_present":0.54,"box_conf":0.64,"match":"FP","before":"img/b_frame10_a.jpg","after":"img/b_frame10_b.jpg"}],"fp_reasons":{"nothing nearby":5,"off-centre":5,"wrong class":8,"duplicate":2}},"c1":{"summary":{"tiles":8,"pairs":200,"single":{"accuracy":0.855,"missed_present":19,"false_present":10,"n_present":93,"n_absent":107,"auc":0.907,"mean_p_present":0.687,"mean_p_absent":0.239},"batch":{"accuracy":0.865,"missed_present":18,"false_present":9,"n_present":93,"n_absent":107,"auc":0.899,"mean_p_present":0.68,"mean_p_absent":0.228},"agreement_at_0.5":0.97,"corr":0.97,"mean_abs_diff":0.029,"cost":{"single":{"calls":200,"tokens":963579,"latency_s":111.2,"usd":0.0405},"batch":{"calls":8,"tokens":93565,"latency_s":5.0,"usd":0.0039}}},"per_tile":[{"tile":0,"x":1856,"y":960,"present":20,"icons":89,"acc_single":0.92,"acc_batch":0.92,"disagree":0,"img":"img/c1_tile0.jpg"},{"tile":1,"x":2980,"y":2402,"present":10,"icons":30,"acc_single":0.8,"acc_batch":0.84,"disagree":1,"img":"img/c1_tile1.jpg"},{"tile":2,"x":431,"y":457,"present":9,"icons":28,"acc_single":0.8,"acc_batch":0.8,"disagree":2,"img":"img/c1_tile2.jpg"},{"tile":3,"x":3063,"y":1046,"present":12,"icons":21,"acc_single":0.88,"acc_batch":0.88,"disagree":0,"img":"img/c1_tile3.jpg"},{"tile":4,"x":2566,"y":1738,"present":16,"icons":57,"acc_single":0.88,"acc_batch":0.88,"disagree":0,"img":"img/c1_tile4.jpg"},{"tile":5,"x":366,"y":2093,"present":3,"icons":18,"acc_single":1.0,"acc_batch":1.0,"disagree":0,"img":"img/c1_tile5.jpg"},{"tile":6,"x":1472,"y":1717,"present":14,"icons":61,"acc_single":0.68,"acc_batch":0.72,"disagree":3,"img":"img/c1_tile6.jpg"},{"tile":7,"x":1666,"y":104,"present":9,"icons":33,"acc_single":0.88,"acc_batch":0.88,"disagree":0,"img":"img/c1_tile7.jpg"}],"disagreements":[{"tile":1,"x":2980,"y":2402,"label":"Memorial","n_true":12,"p_single":0.42,"p_batch":0.5},{"tile":2,"x":431,"y":457,"label":"Memorial","n_true":0,"p_single":0.46,"p_batch":0.52},{"tile":2,"x":431,"y":457,"label":"Fitness station","n_true":0,"p_single":0.55,"p_batch":0.49},{"tile":6,"x":1472,"y":1717,"label":"Doctor","n_true":9,"p_single":0.77,"p_batch":0.07},{"tile":6,"x":1472,"y":1717,"label":"Pharmacy","n_true":0,"p_single":0.64,"p_batch":0.06},{"tile":6,"x":1472,"y":1717,"label":"Traffic signals","n_true":3,"p_single":0.41,"p_batch":0.52}],"pairs":[{"tile":0,"x":1856,"y":960,"label":"Memorial","n_true":21,"p_single":0.65,"p_batch":0.61},{"tile":0,"x":1856,"y":960,"label":"Statue","n_true":1,"p_single":0.91,"p_batch":0.91},{"tile":0,"x":1856,"y":960,"label":"Bust","n_true":1,"p_single":0.44,"p_batch":0.43},{"tile":0,"x":1856,"y":960,"label":"Artwork","n_true":4,"p_single":0.94,"p_batch":0.94},{"tile":0,"x":1856,"y":960,"label":"Museum","n_true":1,"p_single":0.83,"p_batch":0.83},{"tile":0,"x":1856,"y":960,"label":"Viewpoint","n_true":0,"p_single":0.24,"p_batch":0.25},{"tile":0,"x":1856,"y":960,"label":"Shelter","n_true":1,"p_single":0.16,"p_batch":0.15},{"tile":0,"x":1856,"y":960,"label":"Picnic site","n_true":0,"p_single":0.24,"p_batch":0.22},{"tile":0,"x":1856,"y":960,"label":"Hotel","n_true":8,"p_single":0.94,"p_batch":0.94},{"tile":0,"x":1856,"y":960,"label":"Guest house","n_true":0,"p_single":0.41,"p_batch":0.4},{"tile":0,"x":1856,"y":960,"label":"Chalet","n_true":0,"p_single":0.03,"p_batch":0.03},{"tile":0,"x":1856,"y":960,"label":"Doctor","n_true":8,"p_single":0.8,"p_batch":0.8},{"tile":0,"x":1856,"y":960,"label":"Pharmacy","n_true":2,"p_single":0.64,"p_batch":0.65},{"tile":0,"x":1856,"y":960,"label":"Hospital","n_true":0,"p_single":0.33,"p_batch":0.35},{"tile":0,"x":1856,"y":960,"label":"Parking","n_true":6,"p_single":0.92,"p_batch":0.95},{"tile":0,"x":1856,"y":960,"label":"Bus stop","n_true":1,"p_single":0.74,"p_batch":0.68},{"tile":0,"x":1856,"y":960,"label":"Bicycle rental","n_true":3,"p_single":0.72,"p_batch":0.78},{"tile":0,"x":1856,"y":960,"label":"Charging station","n_true":4,"p_single":0.66,"p_batch":0.6},{"tile":0,"x":1856,"y":960,"label":"Taxi rank","n_true":1,"p_single":0.86,"p_batch":0.86},{"tile":0,"x":1856,"y":960,"label":"Playground","n_true":1,"p_single":0.89,"p_batch":0.88},{"tile":0,"x":1856,"y":960,"label":"Fitness station","n_true":2,"p_single":0.83,"p_batch":0.84},{"tile":0,"x":1856,"y":960,"label":"Church (Christian)","n_true":1,"p_single":0.71,"p_batch":0.7},{"tile":0,"x":1856,"y":960,"label":"Traffic signals","n_true":18,"p_single":0.93,"p_batch":0.93},{"tile":0,"x":1856,"y":960,"label":"Drinking water","n_true":1,"p_single":0.65,"p_batch":0.59},{"tile":0,"x":1856,"y":960,"label":"Supermarket","n_true":4,"p_single":0.93,"p_batch":0.93},{"tile":1,"x":2980,"y":2402,"label":"Memorial","n_true":12,"p_single":0.42,"p_batch":0.5},{"tile":1,"x":2980,"y":2402,"label":"Statue","n_true":0,"p_single":0.6,"p_batch":0.63},{"tile":1,"x":2980,"y":2402,"label":"Bust","n_true":0,"p_single":0.29,"p_batch":0.25},{"tile":1,"x":2980,"y":2402,"label":"Artwork","n_true":1,"p_single":0.8,"p_batch":0.81},{"tile":1,"x":2980,"y":2402,"label":"Museum","n_true":0,"p_single":0.29,"p_batch":0.33},{"tile":1,"x":2980,"y":2402,"label":"Viewpoint","n_true":0,"p_single":0.13,"p_batch":0.14},{"tile":1,"x":2980,"y":2402,"label":"Shelter","n_true":0,"p_single":0.21,"p_batch":0.25},{"tile":1,"x":2980,"y":2402,"label":"Picnic site","n_true":0,"p_single":0.09,"p_batch":0.09},{"tile":1,"x":2980,"y":2402,"label":"Hotel","n_true":0,"p_single":0.07,"p_batch":0.06},{"tile":1,"x":2980,"y":2402,"label":"Guest house","n_true":0,"p_single":0.06,"p_batch":0.06},{"tile":1,"x":2980,"y":2402,"label":"Chalet","n_true":0,"p_single":0.03,"p_batch":0.03},{"tile":1,"x":2980,"y":2402,"label":"Doctor","n_true":2,"p_single":0.8,"p_batch":0.79},{"tile":1,"x":2980,"y":2402,"label":"Pharmacy","n_true":1,"p_single":0.63,"p_batch":0.67},{"tile":1,"x":2980,"y":2402,"label":"Hospital","n_true":0,"p_single":0.61,"p_batch":0.55},{"tile":1,"x":2980,"y":2402,"label":"Parking","n_true":2,"p_single":0.87,"p_batch":0.84},{"tile":1,"x":2980,"y":2402,"label":"Bus stop","n_true":0,"p_single":0.15,"p_batch":0.14},{"tile":1,"x":2980,"y":2402,"label":"Bicycle rental","n_true":0,"p_single":0.11,"p_batch":0.11},{"tile":1,"x":2980,"y":2402,"label":"Charging station","n_true":1,"p_single":0.2,"p_batch":0.16},{"tile":1,"x":2980,"y":2402,"label":"Taxi rank","n_true":0,"p_single":0.07,"p_batch":0.08},{"tile":1,"x":2980,"y":2402,"label":"Playground","n_true":0,"p_single":0.29,"p_batch":0.36},{"tile":1,"x":2980,"y":2402,"label":"Fitness station","n_true":0,"p_single":0.39,"p_batch":0.41},{"tile":1,"x":2980,"y":2402,"label":"Church (Christian)","n_true":1,"p_single":0.77,"p_batch":0.77},{"tile":1,"x":2980,"y":2402,"label":"Traffic signals","n_true":8,"p_single":0.9,"p_batch":0.9},{"tile":1,"x":2980,"y":2402,"label":"Drinking water","n_true":1,"p_single":0.15,"p_batch":0.15},{"tile":1,"x":2980,"y":2402,"label":"Supermarket","n_true":1,"p_single":0.88,"p_batch":0.88},{"tile":2,"x":431,"y":457,"label":"Memorial","n_true":0,"p_single":0.46,"p_batch":0.52},{"tile":2,"x":431,"y":457,"label":"Statue","n_true":0,"p_single":0.68,"p_batch":0.79},{"tile":2,"x":431,"y":457,"label":"Bust","n_true":0,"p_single":0.62,"p_batch":0.58},{"tile":2,"x":431,"y":457,"label":"Artwork","n_true":1,"p_single":0.67,"p_batch":0.66},{"tile":2,"x":431,"y":457,"label":"Museum","n_true":0,"p_single":0.64,"p_batch":0.63},{"tile":2,"x":431,"y":457,"label":"Viewpoint","n_true":0,"p_single":0.17,"p_batch":0.14},{"tile":2,"x":431,"y":457,"label":"Shelter","n_true":0,"p_single":0.31,"p_batch":0.3},{"tile":2,"x":431,"y":457,"label":"Picnic site","n_true":0,"p_single":0.24,"p_batch":0.28},{"tile":2,"x":431,"y":457,"label":"Hotel","n_true":0,"p_single":0.11,"p_batch":0.1},{"tile":2,"x":431,"y":457,"label":"Guest house","n_true":0,"p_single":0.07,"p_batch":0.06},{"tile":2,"x":431,"y":457,"label":"Chalet","n_true":0,"p_single":0.06,"p_batch":0.06},{"tile":2,"x":431,"y":457,"label":"Doctor","n_true":3,"p_single":0.78,"p_batch":0.74},{"tile":2,"x":431,"y":457,"label":"Pharmacy","n_true":0,"p_single":0.47,"p_batch":0.39},{"tile":2,"x":431,"y":457,"label":"Hospital","n_true":0,"p_single":0.29,"p_batch":0.26},{"tile":2,"x":431,"y":457,"label":"Parking","n_true":11,"p_single":0.95,"p_batch":0.96},{"tile":2,"x":431,"y":457,"label":"Bus stop","n_true":1,"p_single":0.54,"p_batch":0.56},{"tile":2,"x":431,"y":457,"label":"Bicycle rental","n_true":3,"p_single":0.65,"p_batch":0.64},{"tile":2,"x":431,"y":457,"label":"Charging station","n_true":2,"p_single":0.18,"p_batch":0.2},{"tile":2,"x":431,"y":457,"label":"Taxi rank","n_true":0,"p_single":0.34,"p_batch":0.31},{"tile":2,"x":431,"y":457,"label":"Playground","n_true":2,"p_single":0.95,"p_batch":0.95},{"tile":2,"x":431,"y":457,"label":"Fitness station","n_true":0,"p_single":0.55,"p_batch":0.49},{"tile":2,"x":431,"y":457,"label":"Church (Christian)","n_true":0,"p_single":0.15,"p_batch":0.12},{"tile":2,"x":431,"y":457,"label":"Traffic signals","n_true":4,"p_single":0.91,"p_batch":0.93},{"tile":2,"x":431,"y":457,"label":"Drinking water","n_true":0,"p_single":0.26,"p_batch":0.25},{"tile":2,"x":431,"y":457,"label":"Supermarket","n_true":1,"p_single":0.75,"p_batch":0.72},{"tile":3,"x":3063,"y":1046,"label":"Memorial","n_true":5,"p_single":0.73,"p_batch":0.7},{"tile":3,"x":3063,"y":1046,"label":"Statue","n_true":1,"p_single":0.67,"p_batch":0.64},{"tile":3,"x":3063,"y":1046,"label":"Bust","n_true":0,"p_single":0.37,"p_batch":0.39},{"tile":3,"x":3063,"y":1046,"label":"Artwork","n_true":1,"p_single":0.85,"p_batch":0.85},{"tile":3,"x":3063,"y":1046,"label":"Museum","n_true":0,"p_single":0.3,"p_batch":0.28},{"tile":3,"x":3063,"y":1046,"label":"Viewpoint","n_true":1,"p_single":0.72,"p_batch":0.72},{"tile":3,"x":3063,"y":1046,"label":"Shelter","n_true":1,"p_single":0.19,"p_batch":0.16},{"tile":3,"x":3063,"y":1046,"label":"Picnic site","n_true":0,"p_single":0.11,"p_batch":0.11},{"tile":3,"x":3063,"y":1046,"label":"Hotel","n_true":1,"p_single":0.2,"p_batch":0.14},{"tile":3,"x":3063,"y":1046,"label":"Guest house","n_true":0,"p_single":0.12,"p_batch":0.1},{"tile":3,"x":3063,"y":1046,"label":"Chalet","n_true":0,"p_single":0.06,"p_batch":0.05},{"tile":3,"x":3063,"y":1046,"label":"Doctor","n_true":2,"p_single":0.86,"p_batch":0.87},{"tile":3,"x":3063,"y":1046,"label":"Pharmacy","n_true":0,"p_single":0.28,"p_batch":0.26},{"tile":3,"x":3063,"y":1046,"label":"Hospital","n_true":0,"p_single":0.22,"p_batch":0.18},{"tile":3,"x":3063,"y":1046,"label":"Parking","n_true":1,"p_single":0.92,"p_batch":0.93},{"tile":3,"x":3063,"y":1046,"label":"Bus stop","n_true":2,"p_single":0.66,"p_batch":0.63},{"tile":3,"x":3063,"y":1046,"label":"Bicycle rental","n_true":0,"p_single":0.11,"p_batch":0.11},{"tile":3,"x":3063,"y":1046,"label":"Charging station","n_true":2,"p_single":0.81,"p_batch":0.81},{"tile":3,"x":3063,"y":1046,"label":"Taxi rank","n_true":0,"p_single":0.13,"p_batch":0.12},{"tile":3,"x":3063,"y":1046,"label":"Playground","n_true":0,"p_single":0.13,"p_batch":0.13},{"tile":3,"x":3063,"y":1046,"label":"Fitness station","n_true":0,"p_single":0.11,"p_batch":0.1},{"tile":3,"x":3063,"y":1046,"label":"Church (Christian)","n_true":1,"p_single":0.87,"p_batch":0.89},{"tile":3,"x":3063,"y":1046,"label":"Traffic signals","n_true":3,"p_single":0.11,"p_batch":0.11},{"tile":3,"x":3063,"y":1046,"label":"Drinking water","n_true":0,"p_single":0.3,"p_batch":0.29},{"tile":3,"x":3063,"y":1046,"label":"Supermarket","n_true":0,"p_single":0.01,"p_batch":0.01},{"tile":4,"x":2566,"y":1738,"label":"Memorial","n_true":5,"p_single":0.52,"p_batch":0.52},{"tile":4,"x":2566,"y":1738,"label":"Statue","n_true":3,"p_single":0.62,"p_batch":0.67},{"tile":4,"x":2566,"y":1738,"label":"Bust","n_true":0,"p_single":0.47,"p_batch":0.39},{"tile":4,"x":2566,"y":1738,"label":"Artwork","n_true":6,"p_single":0.85,"p_batch":0.85},{"tile":4,"x":2566,"y":1738,"label":"Museum","n_true":1,"p_single":0.77,"p_batch":0.76},{"tile":4,"x":2566,"y":1738,"label":"Viewpoint","n_true":6,"p_single":0.82,"p_batch":0.88},{"tile":4,"x":2566,"y":1738,"label":"Shelter","n_true":1,"p_single":0.24,"p_batch":0.22},{"tile":4,"x":2566,"y":1738,"label":"Picnic site","n_true":0,"p_single":0.35,"p_batch":0.36},{"tile":4,"x":2566,"y":1738,"label":"Hotel","n_true":3,"p_single":0.9,"p_batch":0.9},{"tile":4,"x":2566,"y":1738,"label":"Guest house","n_true":1,"p_single":0.58,"p_batch":0.59},{"tile":4,"x":2566,"y":1738,"label":"Chalet","n_true":0,"p_single":0.07,"p_batch":0.08},{"tile":4,"x":2566,"y":1738,"label":"Doctor","n_true":1,"p_single":0.75,"p_batch":0.76},{"tile":4,"x":2566,"y":1738,"label":"Pharmacy","n_true":0,"p_single":0.68,"p_batch":0.72},{"tile":4,"x":2566,"y":1738,"label":"Hospital","n_true":0,"p_single":0.42,"p_batch":0.47},{"tile":4,"x":2566,"y":1738,"label":"Parking","n_true":8,"p_single":0.97,"p_batch":0.97},{"tile":4,"x":2566,"y":1738,"label":"Bus stop","n_true":0,"p_single":0.39,"p_batch":0.37},{"tile":4,"x":2566,"y":1738,"label":"Bicycle rental","n_true":1,"p_single":0.57,"p_batch":0.56},{"tile":4,"x":2566,"y":1738,"label":"Charging station","n_true":0,"p_single":0.22,"p_batch":0.21},{"tile":4,"x":2566,"y":1738,"label":"Taxi rank","n_true":1,"p_single":0.66,"p_batch":0.66},{"tile":4,"x":2566,"y":1738,"label":"Playground","n_true":4,"p_single":0.93,"p_batch":0.93},{"tile":4,"x":2566,"y":1738,"label":"Fitness station","n_true":0,"p_single":0.41,"p_batch":0.42},{"tile":4,"x":2566,"y":1738,"label":"Church (Christian)","n_true":1,"p_single":0.91,"p_batch":0.93},{"tile":4,"x":2566,"y":1738,"label":"Traffic signals","n_true":13,"p_single":0.84,"p_batch":0.87},{"tile":4,"x":2566,"y":1738,"label":"Drinking water","n_true":2,"p_single":0.38,"p_batch":0.36},{"tile":4,"x":2566,"y":1738,"label":"Supermarket","n_true":0,"p_single":0.1,"p_batch":0.11},{"tile":5,"x":366,"y":2093,"label":"Memorial","n_true":0,"p_single":0.38,"p_batch":0.38},{"tile":5,"x":366,"y":2093,"label":"Statue","n_true":0,"p_single":0.38,"p_batch":0.39},{"tile":5,"x":366,"y":2093,"label":"Bust","n_true":0,"p_single":0.24,"p_batch":0.24},{"tile":5,"x":366,"y":2093,"label":"Artwork","n_true":0,"p_single":0.28,"p_batch":0.28},{"tile":5,"x":366,"y":2093,"label":"Museum","n_true":0,"p_single":0.41,"p_batch":0.42},{"tile":5,"x":366,"y":2093,"label":"Viewpoint","n_true":0,"p_single":0.16,"p_batch":0.14},{"tile":5,"x":366,"y":2093,"label":"Shelter","n_true":0,"p_single":0.26,"p_batch":0.26},{"tile":5,"x":366,"y":2093,"label":"Picnic site","n_true":0,"p_single":0.32,"p_batch":0.28},{"tile":5,"x":366,"y":2093,"label":"Hotel","n_true":0,"p_single":0.09,"p_batch":0.08},{"tile":5,"x":366,"y":2093,"label":"Guest house","n_true":0,"p_single":0.05,"p_batch":0.07},{"tile":5,"x":366,"y":2093,"label":"Chalet","n_true":0,"p_single":0.05,"p_batch":0.07},{"tile":5,"x":366,"y":2093,"label":"Doctor","n_true":0,"p_single":0.03,"p_batch":0.03},{"tile":5,"x":366,"y":2093,"label":"Pharmacy","n_true":0,"p_single":0.05,"p_batch":0.04},{"tile":5,"x":366,"y":2093,"label":"Hospital","n_true":0,"p_single":0.02,"p_batch":0.02},{"tile":5,"x":366,"y":2093,"label":"Parking","n_true":8,"p_single":0.93,"p_batch":0.92},{"tile":5,"x":366,"y":2093,"label":"Bus stop","n_true":0,"p_single":0.11,"p_batch":0.14},{"tile":5,"x":366,"y":2093,"label":"Bicycle rental","n_true":0,"p_single":0.08,"p_batch":0.08},{"tile":5,"x":366,"y":2093,"label":"Charging station","n_true":0,"p_single":0.1,"p_batch":0.09},{"tile":5,"x":366,"y":2093,"label":"Taxi rank","n_true":0,"p_single":0.04,"p_batch":0.05},{"tile":5,"x":366,"y":2093,"label":"Playground","n_true":2,"p_single":0.75,"p_batch":0.8},{"tile":5,"x":366,"y":2093,"label":"Fitness station","n_true":0,"p_single":0.2,"p_batch":0.22},{"tile":5,"x":366,"y":2093,"label":"Church (Christian)","n_true":0,"p_single":0.18,"p_batch":0.16},{"tile":5,"x":366,"y":2093,"label":"Traffic signals","n_true":8,"p_single":0.9,"p_batch":0.89},{"tile":5,"x":366,"y":2093,"label":"Drinking water","n_true":0,"p_single":0.25,"p_batch":0.22},{"tile":5,"x":366,"y":2093,"label":"Supermarket","n_true":0,"p_single":0.1,"p_batch":0.11},{"tile":6,"x":1472,"y":1717,"label":"Memorial","n_true":16,"p_single":0.5,"p_batch":0.57},{"tile":6,"x":1472,"y":1717,"label":"Statue","n_true":4,"p_single":0.8,"p_batch":0.83},{"tile":6,"x":1472,"y":1717,"label":"Bust","n_true":0,"p_single":0.55,"p_batch":0.55},{"tile":6,"x":1472,"y":1717,"label":"Artwork","n_true":7,"p_single":0.95,"p_batch":0.95},{"tile":6,"x":1472,"y":1717,"label":"Museum","n_true":0,"p_single":0.26,"p_batch":0.27},{"tile":6,"x":1472,"y":1717,"label":"Viewpoint","n_true":0,"p_single":0.21,"p_batch":0.18},{"tile":6,"x":1472,"y":1717,"label":"Shelter","n_true":1,"p_single":0.26,"p_batch":0.26},{"tile":6,"x":1472,"y":1717,"label":"Picnic site","n_true":0,"p_single":0.09,"p_batch":0.1},{"tile":6,"x":1472,"y":1717,"label":"Hotel","n_true":1,"p_single":0.89,"p_batch":0.91},{"tile":6,"x":1472,"y":1717,"label":"Guest house","n_true":0,"p_single":0.38,"p_batch":0.39},{"tile":6,"x":1472,"y":1717,"label":"Chalet","n_true":1,"p_single":0.23,"p_batch":0.08},{"tile":6,"x":1472,"y":1717,"label":"Doctor","n_true":9,"p_single":0.77,"p_batch":0.07},{"tile":6,"x":1472,"y":1717,"label":"Pharmacy","n_true":0,"p_single":0.64,"p_batch":0.06},{"tile":6,"x":1472,"y":1717,"label":"Hospital","n_true":0,"p_single":0.48,"p_batch":0.07},{"tile":6,"x":1472,"y":1717,"label":"Parking","n_true":10,"p_single":0.97,"p_batch":0.96},{"tile":6,"x":1472,"y":1717,"label":"Bus stop","n_true":0,"p_single":0.33,"p_batch":0.35},{"tile":6,"x":1472,"y":1717,"label":"Bicycle rental","n_true":3,"p_single":0.6,"p_batch":0.64},{"tile":6,"x":1472,"y":1717,"label":"Charging station","n_true":1,"p_single":0.43,"p_batch":0.44},{"tile":6,"x":1472,"y":1717,"label":"Taxi rank","n_true":1,"p_single":0.16,"p_batch":0.18},{"tile":6,"x":1472,"y":1717,"label":"Playground","n_true":1,"p_single":0.12,"p_batch":0.1},{"tile":6,"x":1472,"y":1717,"label":"Fitness station","n_true":0,"p_single":0.11,"p_batch":0.13},{"tile":6,"x":1472,"y":1717,"label":"Church (Christian)","n_true":0,"p_single":0.09,"p_batch":0.08},{"tile":6,"x":1472,"y":1717,"label":"Traffic signals","n_true":3,"p_single":0.41,"p_batch":0.52},{"tile":6,"x":1472,"y":1717,"label":"Drinking water","n_true":3,"p_single":0.76,"p_batch":0.78},{"tile":6,"x":1472,"y":1717,"label":"Supermarket","n_true":0,"p_single":0.09,"p_batch":0.07},{"tile":7,"x":1666,"y":104,"label":"Memorial","n_true":1,"p_single":0.41,"p_batch":0.49},{"tile":7,"x":1666,"y":104,"label":"Statue","n_true":0,"p_single":0.27,"p_batch":0.26},{"tile":7,"x":1666,"y":104,"label":"Bust","n_true":0,"p_single":0.19,"p_batch":0.17},{"tile":7,"x":1666,"y":104,"label":"Artwork","n_true":0,"p_single":0.28,"p_batch":0.3},{"tile":7,"x":1666,"y":104,"label":"Museum","n_true":0,"p_single":0.32,"p_batch":0.35},{"tile":7,"x":1666,"y":104,"label":"Viewpoint","n_true":0,"p_single":0.1,"p_batch":0.1},{"tile":7,"x":1666,"y":104,"label":"Shelter","n_true":1,"p_single":0.19,"p_batch":0.18},{"tile":7,"x":1666,"y":104,"label":"Picnic site","n_true":0,"p_single":0.34,"p_batch":0.21},{"tile":7,"x":1666,"y":104,"label":"Hotel","n_true":0,"p_single":0.08,"p_batch":0.08},{"tile":7,"x":1666,"y":104,"label":"Guest house","n_true":0,"p_single":0.07,"p_batch":0.06},{"tile":7,"x":1666,"y":104,"label":"Chalet","n_true":0,"p_single":0.04,"p_batch":0.03},{"tile":7,"x":1666,"y":104,"label":"Doctor","n_true":4,"p_single":0.73,"p_batch":0.75},{"tile":7,"x":1666,"y":104,"label":"Pharmacy","n_true":0,"p_single":0.57,"p_batch":0.58},{"tile":7,"x":1666,"y":104,"label":"Hospital","n_true":0,"p_single":0.22,"p_batch":0.22},{"tile":7,"x":1666,"y":104,"label":"Parking","n_true":10,"p_single":0.95,"p_batch":0.94},{"tile":7,"x":1666,"y":104,"label":"Bus stop","n_true":2,"p_single":0.87,"p_batch":0.89},{"tile":7,"x":1666,"y":104,"label":"Bicycle rental","n_true":2,"p_single":0.8,"p_batch":0.79},{"tile":7,"x":1666,"y":104,"label":"Charging station","n_true":0,"p_single":0.09,"p_batch":0.09},{"tile":7,"x":1666,"y":104,"label":"Taxi rank","n_true":0,"p_single":0.05,"p_batch":0.05},{"tile":7,"x":1666,"y":104,"label":"Playground","n_true":7,"p_single":0.92,"p_batch":0.92},{"tile":7,"x":1666,"y":104,"label":"Fitness station","n_true":2,"p_single":0.85,"p_batch":0.86},{"tile":7,"x":1666,"y":104,"label":"Church (Christian)","n_true":0,"p_single":0.1,"p_batch":0.12},{"tile":7,"x":1666,"y":104,"label":"Traffic signals","n_true":4,"p_single":0.86,"p_batch":0.85},{"tile":7,"x":1666,"y":104,"label":"Drinking water","n_true":0,"p_single":0.14,"p_batch":0.12},{"tile":7,"x":1666,"y":104,"label":"Supermarket","n_true":0,"p_single":0.32,"p_batch":0.35}],"overview":"img/c1_overview.jpg","example":{"tile":6,"img":"img/c1_example_tile.jpg","legend":"img/c1_example_legend.png","row":{"tile":6,"x":1472,"y":1717,"label":"Doctor","n_true":9,"p_single":0.77,"p_batch":0.07}},"legend_strip":[{"label":"Memorial","img":"img/c1_leg00.png"},{"label":"Statue","img":"img/c1_leg01.png"},{"label":"Bust","img":"img/c1_leg02.png"},{"label":"Artwork","img":"img/c1_leg03.png"},{"label":"Museum","img":"img/c1_leg04.png"},{"label":"Viewpoint","img":"img/c1_leg05.png"},{"label":"Shelter","img":"img/c1_leg06.png"},{"label":"Picnic site","img":"img/c1_leg07.png"},{"label":"Hotel","img":"img/c1_leg08.png"},{"label":"Guest house","img":"img/c1_leg09.png"},{"label":"Chalet","img":"img/c1_leg10.png"},{"label":"Doctor","img":"img/c1_leg11.png"},{"label":"Pharmacy","img":"img/c1_leg12.png"},{"label":"Hospital","img":"img/c1_leg13.png"},{"label":"Parking","img":"img/c1_leg14.png"},{"label":"Bus stop","img":"img/c1_leg15.png"},{"label":"Bicycle rental","img":"img/c1_leg16.png"},{"label":"Charging station","img":"img/c1_leg17.png"},{"label":"Taxi rank","img":"img/c1_leg18.png"},{"label":"Playground","img":"img/c1_leg19.png"},{"label":"Fitness station","img":"img/c1_leg20.png"},{"label":"Church (Christian)","img":"img/c1_leg21.png"},{"label":"Traffic signals","img":"img/c1_leg22.png"},{"label":"Drinking water","img":"img/c1_leg23.png"},{"label":"Supermarket","img":"img/c1_leg24.png"}],"manifest":{"commit":"7ee487b","dirty":true,"started":"2026-11-20T13:45:20+00:00"}},"c2":{"summary":{"before":{"pred":94,"tp":74,"precision":0.787,"recall":0.831,"f1":0.809},"after":{"pred":77,"tp":68,"precision":0.883,"recall":0.764,"f1":0.819},"fp_removed":11,"fp_total":20,"tp_lost":6,"cost":{"calls":94,"tokens":641157,"latency_s":22.2,"usd":0.0269}},"before":{"pred":94,"tp":74,"fp":20,"precision":0.787,"recall":0.831,"f1":0.809},"strict":{"pred":77,"tp":68,"fp":9,"precision":0.883,"recall":0.764,"f1":0.819},"gentle":{"pred":84,"tp":71,"fp":13,"precision":0.845,"recall":0.798,"f1":0.821},"cards":[{"label":"Bicycle rental","match":"TP","choice":"none of these","conf":0.44,"p_own":0.41,"p_none":0.46,"keep":false,"gentle_keep":true,"img":"img/c2_crop07.jpg","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"}},{"label":"Hotel","match":"TP","choice":"none of these","conf":0.75,"p_own":0.17,"p_none":0.76,"keep":false,"gentle_keep":true,"img":"img/c2_crop13.jpg","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"}},{"label":"Doctor","match":"TP","choice":"none of these","conf":0.43,"p_own":0.0,"p_none":0.45,"keep":false,"gentle_keep":true,"img":"img/c2_crop16.jpg","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"}},{"label":"Fitness station","match":"FP","choice":"Fitness station","conf":0.95,"p_own":0.95,"p_none":0.05,"keep":true,"gentle_keep":true,"img":"img/c2_crop36.jpg","reason":{"kind":"nothing nearby","text":"nothing there: no true Fitness station within 15 px"}},{"label":"Memorial","match":"TP","choice":"Bicycle rental","conf":0.82,"p_own":0.08,"p_none":0.06,"keep":false,"gentle_keep":false,"img":"img/c2_crop41.jpg","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"}},{"label":"Memorial","match":"FP","choice":"Memorial","conf":0.73,"p_own":0.74,"p_none":0.13,"keep":true,"gentle_keep":true,"img":"img/c2_crop44.jpg","reason":{"kind":"off-centre","text":"off-centre: the nearest Memorial is 12.3 px away (limit 7 px)"}},{"label":"Statue","match":"FP","choice":"Artwork","conf":0.57,"p_own":0.4,"p_none":0.0,"keep":false,"gentle_keep":false,"img":"img/c2_crop50.jpg","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Artwork (4.1 px), not a Statue"}},{"label":"Hotel","match":"FP","choice":"Hotel","conf":0.99,"p_own":0.99,"p_none":0.01,"keep":true,"gentle_keep":true,"img":"img/c2_crop51.jpg","reason":{"kind":"off-centre","text":"off-centre: the nearest Hotel is 10.8 px away (limit 7 px)"}},{"label":"Fitness station","match":"FP","choice":"Fitness station","conf":0.93,"p_own":0.93,"p_none":0.03,"keep":true,"gentle_keep":true,"img":"img/c2_crop52.jpg","reason":{"kind":"nothing nearby","text":"nothing there: no true Fitness station within 15 px"}},{"label":"Traffic signals","match":"FP","choice":"none of these","conf":0.83,"p_own":0.0,"p_none":0.84,"keep":false,"gentle_keep":true,"img":"img/c2_crop54.jpg","reason":{"kind":"nothing nearby","text":"nothing there: no true Traffic signals within 15 px"}},{"label":"Statue","match":"FP","choice":"Artwork","conf":0.99,"p_own":0.01,"p_none":0.0,"keep":false,"gentle_keep":false,"img":"img/c2_crop59.jpg","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Artwork (1.2 px), not a Statue"}},{"label":"Statue","match":"FP","choice":"Artwork","conf":0.99,"p_own":0.01,"p_none":0.0,"keep":false,"gentle_keep":false,"img":"img/c2_crop70.jpg","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Artwork (0.7 px), not a Statue"}},{"label":"Traffic signals","match":"TP","choice":"Parking","conf":0.47,"p_own":0.47,"p_none":0.03,"keep":false,"gentle_keep":false,"img":"img/c2_crop71.jpg","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"}},{"label":"Artwork","match":"TP","choice":"Statue","conf":0.95,"p_own":0.0,"p_none":0.02,"keep":false,"gentle_keep":false,"img":"img/c2_crop73.jpg","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"}},{"label":"Traffic signals","match":"FP","choice":"Traffic signals","conf":0.73,"p_own":0.74,"p_none":0.1,"keep":true,"gentle_keep":true,"img":"img/c2_crop75.jpg","reason":{"kind":"duplicate","text":"duplicate: a Traffic signals 3.9 px away was already matched by another detection"}},{"label":"Charging station","match":"FP","choice":"Charging station","conf":0.85,"p_own":0.86,"p_none":0.05,"keep":true,"gentle_keep":true,"img":"img/c2_crop76.jpg","reason":{"kind":"off-centre","text":"off-centre: the nearest Charging station is 7.8 px away (limit 7 px)"}},{"label":"Church (Christian)","match":"FP","choice":"Statue","conf":0.55,"p_own":0.37,"p_none":0.03,"keep":false,"gentle_keep":false,"img":"img/c2_crop77.jpg","reason":{"kind":"nothing nearby","text":"nothing there: no true Church (Christian) within 15 px"}},{"label":"Statue","match":"FP","choice":"Bust","conf":0.73,"p_own":0.22,"p_none":0.02,"keep":false,"gentle_keep":false,"img":"img/c2_crop80.jpg","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Bust (0.6 px), not a Statue"}},{"label":"Pharmacy","match":"FP","choice":"none of these","conf":0.44,"p_own":0.13,"p_none":0.46,"keep":false,"gentle_keep":true,"img":"img/c2_crop84.jpg","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Doctor (1.6 px), not a Pharmacy"}},{"label":"Statue","match":"FP","choice":"none of these","conf":0.88,"p_own":0.0,"p_none":0.88,"keep":false,"gentle_keep":true,"img":"img/c2_crop85.jpg","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Artwork (5.8 px), not a Statue"}},{"label":"Traffic signals","match":"FP","choice":"Traffic signals","conf":0.94,"p_own":0.94,"p_none":0.06,"keep":true,"gentle_keep":true,"img":"img/c2_crop87.jpg","reason":{"kind":"off-centre","text":"off-centre: the nearest Traffic signals is 9.2 px away (limit 7 px)"}},{"label":"Taxi rank","match":"FP","choice":"Bus stop","conf":1.0,"p_own":0.0,"p_none":0.0,"keep":false,"gentle_keep":false,"img":"img/c2_crop88.jpg","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Bus stop (4.1 px), not a Taxi rank"}},{"label":"Traffic signals","match":"FP","choice":"Traffic signals","conf":0.83,"p_own":0.84,"p_none":0.12,"keep":true,"gentle_keep":true,"img":"img/c2_crop89.jpg","reason":{"kind":"off-centre","text":"off-centre: the nearest Traffic signals is 12.0 px away (limit 7 px)"}},{"label":"Church (Christian)","match":"FP","choice":"none of these","conf":0.54,"p_own":0.17,"p_none":0.56,"keep":false,"gentle_keep":true,"img":"img/c2_crop91.jpg","reason":{"kind":"nothing nearby","text":"nothing there: no true Church (Christian) within 15 px"}},{"label":"Memorial","match":"FP","choice":"Memorial","conf":0.71,"p_own":0.72,"p_none":0.06,"keep":true,"gentle_keep":true,"img":"img/c2_crop92.jpg","reason":{"kind":"duplicate","text":"duplicate: a Memorial 6.8 px away was already matched by another detection"}},{"label":"Pharmacy","match":"FP","choice":"Doctor","conf":0.99,"p_own":0.01,"p_none":0.0,"keep":false,"gentle_keep":false,"img":"img/c2_crop93.jpg","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Doctor (0.6 px), not a Pharmacy"}}],"n_truth":89,"options":[{"label":"Memorial","img":"img/c2_opt00.png"},{"label":"Statue","img":"img/c2_opt01.png"},{"label":"Bust","img":"img/c2_opt02.png"},{"label":"Artwork","img":"img/c2_opt03.png"},{"label":"Museum","img":"img/c2_opt04.png"},{"label":"Viewpoint","img":"img/c2_opt05.png"},{"label":"Shelter","img":"img/c2_opt06.png"},{"label":"Picnic site","img":"img/c2_opt07.png"},{"label":"Hotel","img":"img/c2_opt08.png"},{"label":"Guest house","img":"img/c2_opt09.png"},{"label":"Chalet","img":"img/c2_opt10.png"},{"label":"Doctor","img":"img/c2_opt11.png"},{"label":"Pharmacy","img":"img/c2_opt12.png"},{"label":"Hospital","img":"img/c2_opt13.png"},{"label":"Parking","img":"img/c2_opt14.png"},{"label":"Bus stop","img":"img/c2_opt15.png"},{"label":"Bicycle rental","img":"img/c2_opt16.png"},{"label":"Charging station","img":"img/c2_opt17.png"},{"label":"Taxi rank","img":"img/c2_opt18.png"},{"label":"Playground","img":"img/c2_opt19.png"},{"label":"Fitness station","img":"img/c2_opt20.png"},{"label":"Church (Christian)","img":"img/c2_opt21.png"},{"label":"Traffic signals","img":"img/c2_opt22.png"},{"label":"Drinking water","img":"img/c2_opt23.png"},{"label":"Supermarket","img":"img/c2_opt24.png"}],"loop_calls":544,"loop_usd":0.1212,"manifest":{"commit":"7ee487b","dirty":true,"started":"2026-11-20T13:45:20+00:00"}},"c3":{"summary":{"before":{"pred":94,"tp":74,"fp":20,"precision":0.787,"recall":0.831,"f1":0.809},"wide":{"strict":{"pred":77,"tp":68,"fp":9,"precision":0.883,"recall":0.764,"f1":0.819},"gentle":{"pred":84,"tp":71,"fp":13,"precision":0.845,"recall":0.798,"f1":0.821},"fp_removed_strict":11,"tp_lost_strict":6,"fp_removed_gentle":7,"tp_lost_gentle":3,"choice_none":7},"box":{"strict":{"pred":76,"tp":69,"fp":7,"precision":0.908,"recall":0.775,"f1":0.836},"gentle":{"pred":87,"tp":73,"fp":14,"precision":0.839,"recall":0.82,"f1":0.83},"fp_removed_strict":13,"tp_lost_strict":5,"fp_removed_gentle":6,"tp_lost_gentle":1,"choice_none":11},"sq20":{"strict":{"pred":73,"tp":67,"fp":6,"precision":0.918,"recall":0.753,"f1":0.827},"gentle":{"pred":84,"tp":72,"fp":12,"precision":0.857,"recall":0.809,"f1":0.832},"fp_removed_strict":14,"tp_lost_strict":7,"fp_removed_gentle":8,"tp_lost_gentle":2,"choice_none":11},"cost":{"box":{"calls":94,"tokens":633975,"latency_s":40.2,"usd":0.0266},"sq20":{"calls":94,"tokens":632863,"latency_s":38.5,"usd":0.0266}},"median_box_px":[18.5,20.0],"api_new_calls":0,"api_cache_hits":188},"cards":[{"label":"Bicycle rental","match":"TP","wide_choice":"none of these","box_choice":"Bicycle rental","sq20_choice":"Bicycle rental","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_07_wide.jpg","box":"img/c3_07_box.jpg","sq20":"img/c3_07_sq20.jpg"}},{"label":"Hotel","match":"TP","wide_choice":"none of these","box_choice":"Hotel","sq20_choice":"Hotel","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_13_wide.jpg","box":"img/c3_13_box.jpg","sq20":"img/c3_13_sq20.jpg"}},{"label":"Doctor","match":"TP","wide_choice":"none of these","box_choice":"Doctor","sq20_choice":"Doctor","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_16_wide.jpg","box":"img/c3_16_box.jpg","sq20":"img/c3_16_sq20.jpg"}},{"label":"Doctor","match":"TP","wide_choice":"Doctor","box_choice":"Doctor","sq20_choice":"none of these","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_23_wide.jpg","box":"img/c3_23_box.jpg","sq20":"img/c3_23_sq20.jpg"}},{"label":"Doctor","match":"TP","wide_choice":"Doctor","box_choice":"Doctor","sq20_choice":"Pharmacy","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_24_wide.jpg","box":"img/c3_24_box.jpg","sq20":"img/c3_24_sq20.jpg"}},{"label":"Museum","match":"TP","wide_choice":"Museum","box_choice":"Museum","sq20_choice":"none of these","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_29_wide.jpg","box":"img/c3_29_box.jpg","sq20":"img/c3_29_sq20.jpg"}},{"label":"Fitness station","match":"FP","wide_choice":"Fitness station","box_choice":"Fitness station","sq20_choice":"Fitness station","reason":{"kind":"nothing nearby","text":"nothing there: no true Fitness station within 15 px"},"img":{"wide":"img/c3_36_wide.jpg","box":"img/c3_36_box.jpg","sq20":"img/c3_36_sq20.jpg"}},{"label":"Memorial","match":"TP","wide_choice":"Bicycle rental","box_choice":"Memorial","sq20_choice":"Memorial","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_41_wide.jpg","box":"img/c3_41_box.jpg","sq20":"img/c3_41_sq20.jpg"}},{"label":"Doctor","match":"TP","wide_choice":"Doctor","box_choice":"Doctor","sq20_choice":"Museum","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_43_wide.jpg","box":"img/c3_43_box.jpg","sq20":"img/c3_43_sq20.jpg"}},{"label":"Memorial","match":"FP","wide_choice":"Memorial","box_choice":"none of these","sq20_choice":"none of these","reason":{"kind":"off-centre","text":"off-centre: the nearest Memorial is 12.3 px away (limit 7 px)"},"img":{"wide":"img/c3_44_wide.jpg","box":"img/c3_44_box.jpg","sq20":"img/c3_44_sq20.jpg"}},{"label":"Memorial","match":"TP","wide_choice":"Memorial","box_choice":"none of these","sq20_choice":"Memorial","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_47_wide.jpg","box":"img/c3_47_box.jpg","sq20":"img/c3_47_sq20.jpg"}},{"label":"Statue","match":"FP","wide_choice":"Artwork","box_choice":"Artwork","sq20_choice":"Artwork","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Artwork (4.1 px), not a Statue"},"img":{"wide":"img/c3_50_wide.jpg","box":"img/c3_50_box.jpg","sq20":"img/c3_50_sq20.jpg"}},{"label":"Hotel","match":"FP","wide_choice":"Hotel","box_choice":"Hotel","sq20_choice":"none of these","reason":{"kind":"off-centre","text":"off-centre: the nearest Hotel is 10.8 px away (limit 7 px)"},"img":{"wide":"img/c3_51_wide.jpg","box":"img/c3_51_box.jpg","sq20":"img/c3_51_sq20.jpg"}},{"label":"Fitness station","match":"FP","wide_choice":"Fitness station","box_choice":"Fitness station","sq20_choice":"Fitness station","reason":{"kind":"nothing nearby","text":"nothing there: no true Fitness station within 15 px"},"img":{"wide":"img/c3_52_wide.jpg","box":"img/c3_52_box.jpg","sq20":"img/c3_52_sq20.jpg"}},{"label":"Traffic signals","match":"FP","wide_choice":"none of these","box_choice":"none of these","sq20_choice":"none of these","reason":{"kind":"nothing nearby","text":"nothing there: no true Traffic signals within 15 px"},"img":{"wide":"img/c3_54_wide.jpg","box":"img/c3_54_box.jpg","sq20":"img/c3_54_sq20.jpg"}},{"label":"Memorial","match":"TP","wide_choice":"Memorial","box_choice":"Bus stop","sq20_choice":"Memorial","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_56_wide.jpg","box":"img/c3_56_box.jpg","sq20":"img/c3_56_sq20.jpg"}},{"label":"Memorial","match":"TP","wide_choice":"Memorial","box_choice":"Memorial","sq20_choice":"none of these","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_57_wide.jpg","box":"img/c3_57_box.jpg","sq20":"img/c3_57_sq20.jpg"}},{"label":"Statue","match":"FP","wide_choice":"Artwork","box_choice":"Artwork","sq20_choice":"Artwork","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Artwork (1.2 px), not a Statue"},"img":{"wide":"img/c3_59_wide.jpg","box":"img/c3_59_box.jpg","sq20":"img/c3_59_sq20.jpg"}},{"label":"Memorial","match":"TP","wide_choice":"Memorial","box_choice":"Memorial","sq20_choice":"none of these","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_62_wide.jpg","box":"img/c3_62_box.jpg","sq20":"img/c3_62_sq20.jpg"}},{"label":"Statue","match":"FP","wide_choice":"Artwork","box_choice":"Artwork","sq20_choice":"Artwork","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Artwork (0.7 px), not a Statue"},"img":{"wide":"img/c3_70_wide.jpg","box":"img/c3_70_box.jpg","sq20":"img/c3_70_sq20.jpg"}},{"label":"Traffic signals","match":"TP","wide_choice":"Parking","box_choice":"none of these","sq20_choice":"Traffic signals","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_71_wide.jpg","box":"img/c3_71_box.jpg","sq20":"img/c3_71_sq20.jpg"}},{"label":"Statue","match":"TP","wide_choice":"Statue","box_choice":"Statue","sq20_choice":"none of these","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_72_wide.jpg","box":"img/c3_72_box.jpg","sq20":"img/c3_72_sq20.jpg"}},{"label":"Artwork","match":"TP","wide_choice":"Statue","box_choice":"Artwork","sq20_choice":"Artwork","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_73_wide.jpg","box":"img/c3_73_box.jpg","sq20":"img/c3_73_sq20.jpg"}},{"label":"Traffic signals","match":"FP","wide_choice":"Traffic signals","box_choice":"Traffic signals","sq20_choice":"Traffic signals","reason":{"kind":"duplicate","text":"duplicate: a Traffic signals 3.9 px away was already matched by another detection"},"img":{"wide":"img/c3_75_wide.jpg","box":"img/c3_75_box.jpg","sq20":"img/c3_75_sq20.jpg"}},{"label":"Charging station","match":"FP","wide_choice":"Charging station","box_choice":"Charging station","sq20_choice":"Charging station","reason":{"kind":"off-centre","text":"off-centre: the nearest Charging station is 7.8 px away (limit 7 px)"},"img":{"wide":"img/c3_76_wide.jpg","box":"img/c3_76_box.jpg","sq20":"img/c3_76_sq20.jpg"}},{"label":"Church (Christian)","match":"FP","wide_choice":"Statue","box_choice":"Church (Christian)","sq20_choice":"Church (Christian)","reason":{"kind":"nothing nearby","text":"nothing there: no true Church (Christian) within 15 px"},"img":{"wide":"img/c3_77_wide.jpg","box":"img/c3_77_box.jpg","sq20":"img/c3_77_sq20.jpg"}},{"label":"Memorial","match":"TP","wide_choice":"Memorial","box_choice":"none of these","sq20_choice":"Memorial","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_79_wide.jpg","box":"img/c3_79_box.jpg","sq20":"img/c3_79_sq20.jpg"}},{"label":"Statue","match":"FP","wide_choice":"Bust","box_choice":"none of these","sq20_choice":"Bust","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Bust (0.6 px), not a Statue"},"img":{"wide":"img/c3_80_wide.jpg","box":"img/c3_80_box.jpg","sq20":"img/c3_80_sq20.jpg"}},{"label":"Bus stop","match":"TP","wide_choice":"Bus stop","box_choice":"none of these","sq20_choice":"Bus stop","reason":{"kind":"correct","text":"scored correct: within 7 px of a true icon of this class"},"img":{"wide":"img/c3_83_wide.jpg","box":"img/c3_83_box.jpg","sq20":"img/c3_83_sq20.jpg"}},{"label":"Pharmacy","match":"FP","wide_choice":"none of these","box_choice":"Doctor","sq20_choice":"Doctor","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Doctor (1.6 px), not a Pharmacy"},"img":{"wide":"img/c3_84_wide.jpg","box":"img/c3_84_box.jpg","sq20":"img/c3_84_sq20.jpg"}},{"label":"Statue","match":"FP","wide_choice":"none of these","box_choice":"Artwork","sq20_choice":"Artwork","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Artwork (5.8 px), not a Statue"},"img":{"wide":"img/c3_85_wide.jpg","box":"img/c3_85_box.jpg","sq20":"img/c3_85_sq20.jpg"}},{"label":"Traffic signals","match":"FP","wide_choice":"Traffic signals","box_choice":"none of these","sq20_choice":"none of these","reason":{"kind":"off-centre","text":"off-centre: the nearest Traffic signals is 9.2 px away (limit 7 px)"},"img":{"wide":"img/c3_87_wide.jpg","box":"img/c3_87_box.jpg","sq20":"img/c3_87_sq20.jpg"}},{"label":"Taxi rank","match":"FP","wide_choice":"Bus stop","box_choice":"none of these","sq20_choice":"Bus stop","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Bus stop (4.1 px), not a Taxi rank"},"img":{"wide":"img/c3_88_wide.jpg","box":"img/c3_88_box.jpg","sq20":"img/c3_88_sq20.jpg"}},{"label":"Traffic signals","match":"FP","wide_choice":"Traffic signals","box_choice":"none of these","sq20_choice":"none of these","reason":{"kind":"off-centre","text":"off-centre: the nearest Traffic signals is 12.0 px away (limit 7 px)"},"img":{"wide":"img/c3_89_wide.jpg","box":"img/c3_89_box.jpg","sq20":"img/c3_89_sq20.jpg"}},{"label":"Church (Christian)","match":"FP","wide_choice":"none of these","box_choice":"none of these","sq20_choice":"none of these","reason":{"kind":"nothing nearby","text":"nothing there: no true Church (Christian) within 15 px"},"img":{"wide":"img/c3_91_wide.jpg","box":"img/c3_91_box.jpg","sq20":"img/c3_91_sq20.jpg"}},{"label":"Memorial","match":"FP","wide_choice":"Memorial","box_choice":"Memorial","sq20_choice":"Memorial","reason":{"kind":"duplicate","text":"duplicate: a Memorial 6.8 px away was already matched by another detection"},"img":{"wide":"img/c3_92_wide.jpg","box":"img/c3_92_box.jpg","sq20":"img/c3_92_sq20.jpg"}},{"label":"Pharmacy","match":"FP","wide_choice":"Doctor","box_choice":"Doctor","sq20_choice":"Doctor","reason":{"kind":"wrong class","text":"wrong class: the icon here is a Doctor (0.6 px), not a Pharmacy"},"img":{"wide":"img/c3_93_wide.jpg","box":"img/c3_93_box.jpg","sq20":"img/c3_93_sq20.jpg"}}],"manifest":{"commit":"7ee487b","dirty":true,"started":"2026-11-20T13:45:28+00:00"},"example":{"label":"Statue","wide":"img/c3_50_wide.jpg","box":"img/c3_50_box.jpg","sq20":"img/c3_50_sq20.jpg","option":"img/c3_opt_artwork.png"}},"c4":{"summary":{"cost":{"calls":150,"tokens":893868,"latency_s":35.5,"usd":0.0375},"api_new_calls":146,"api_cache_hits":4,"dance_screening":{"label":"Dance","gt_label":"Dance","p_present":0.42,"n_true":2,"screened_in":true,"forced":true,"stage2_calls":29,"detections":4,"work_image":"img/work_25.png"}},"A":{"loop":{"pred":98,"tp":76,"fp":22,"precision":0.776,"recall":0.835,"f1":0.804},"strict":{"pred":71,"tp":67,"fp":4,"precision":0.944,"recall":0.736,"f1":0.827},"gentle":{"pred":83,"tp":72,"fp":11,"precision":0.867,"recall":0.791,"f1":0.828}},"c3_box":{"strict":{"pred":76,"tp":69,"fp":7,"precision":0.908,"recall":0.775,"f1":0.836},"gentle":{"pred":87,"tp":73,"fp":14,"precision":0.839,"recall":0.82,"f1":0.83},"fp_removed_strict":13,"tp_lost_strict":5,"fp_removed_gentle":6,"tp_lost_gentle":1,"choice_none":11},"dets":[{"label":"Fitness station","match":"TP","choice":"Fitness station","p_fitness":0.99,"p_dance":0.01,"truth":"Fitness station","img":"img/c4_det18.jpg"},{"label":"Dance","match":"TP","choice":"Dance","p_fitness":0.03,"p_dance":0.97,"truth":"Dance","img":"img/c4_det27.jpg"},{"label":"Fitness station","match":"TP","choice":"Fitness station","p_fitness":0.97,"p_dance":0.02,"truth":"Fitness station","img":"img/c4_det29.jpg"},{"label":"Dance","match":"TP","choice":"Dance","p_fitness":0.03,"p_dance":0.97,"truth":"Dance","img":"img/c4_det31.jpg"},{"label":"Fitness station","match":"FP","choice":"Dance","p_fitness":0.03,"p_dance":0.97,"truth":"Dance","img":"img/c4_det38.jpg"},{"label":"Fitness station","match":"FP","choice":"Dance","p_fitness":0.03,"p_dance":0.97,"truth":"Dance","img":"img/c4_det54.jpg"},{"label":"Dance","match":"FP","choice":"Fitness station","p_fitness":0.97,"p_dance":0.01,"truth":"Fitness station","img":"img/c4_det83.jpg"},{"label":"Dance","match":"FP","choice":"Fitness station","p_fitness":0.99,"p_dance":0.01,"truth":"Fitness station","img":"img/c4_det86.jpg"}],"icons":[{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.96,"p26_dance":0.03,"p2_fitness":0.94,"p2_dance":0.01,"img":"img/c4_gt0996.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.97,"p26_dance":0.02,"p2_fitness":0.96,"p2_dance":0.0,"img":"img/c4_gt0997.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.95,"p26_dance":0.04,"p2_fitness":0.9,"p2_dance":0.02,"img":"img/c4_gt0998.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.58,"p26_dance":0.02,"p2_fitness":0.96,"p2_dance":0.0,"img":"img/c4_gt0999.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.98,"p26_dance":0.02,"p2_fitness":0.93,"p2_dance":0.01,"img":"img/c4_gt1000.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.91,"p26_dance":0.03,"p2_fitness":0.9,"p2_dance":0.0,"img":"img/c4_gt1001.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.51,"p26_dance":0.02,"p2_fitness":0.92,"p2_dance":0.0,"img":"img/c4_gt1002.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.53,"p26_dance":0.01,"p2_fitness":0.98,"p2_dance":0.0,"img":"img/c4_gt1003.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.98,"p26_dance":0.01,"p2_fitness":0.96,"p2_dance":0.0,"img":"img/c4_gt1004.jpg"},{"truth":"Fitness station","choice26":"none of these","choice2":"none of these","p26_fitness":0.45,"p26_dance":0.04,"p2_fitness":0.39,"p2_dance":0.0,"img":"img/c4_gt1005.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.99,"p26_dance":0.01,"p2_fitness":0.96,"p2_dance":0.0,"img":"img/c4_gt1006.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.62,"p26_dance":0.07,"p2_fitness":0.77,"p2_dance":0.02,"img":"img/c4_gt1007.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.95,"p26_dance":0.03,"p2_fitness":0.93,"p2_dance":0.0,"img":"img/c4_gt1008.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":1.0,"p26_dance":0.0,"p2_fitness":0.98,"p2_dance":0.0,"img":"img/c4_gt1009.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.96,"p26_dance":0.02,"p2_fitness":0.91,"p2_dance":0.01,"img":"img/c4_gt1010.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.99,"p26_dance":0.01,"p2_fitness":0.98,"p2_dance":0.0,"img":"img/c4_gt1011.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.98,"p26_dance":0.01,"p2_fitness":0.96,"p2_dance":0.0,"img":"img/c4_gt1012.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.97,"p26_dance":0.02,"p2_fitness":0.97,"p2_dance":0.0,"img":"img/c4_gt1013.jpg"},{"truth":"Fitness station","choice26":"Fitness station","choice2":"Fitness station","p26_fitness":0.97,"p26_dance":0.02,"p2_fitness":0.94,"p2_dance":0.02,"img":"img/c4_gt1014.jpg"},{"truth":"Dance","choice26":"Charging station","choice2":"Dance","p26_fitness":0.01,"p26_dance":0.4,"p2_fitness":0.02,"p2_dance":0.97,"img":"img/c4_gt1381.jpg"},{"truth":"Dance","choice26":"Dance","choice2":"Dance","p26_fitness":0.04,"p26_dance":0.96,"p2_fitness":0.01,"p2_dance":0.99,"img":"img/c4_gt1382.jpg"},{"truth":"Dance","choice26":"Dance","choice2":"Dance","p26_fitness":0.01,"p26_dance":0.95,"p2_fitness":0.02,"p2_dance":0.97,"img":"img/c4_gt1383.jpg"},{"truth":"Dance","choice26":"Dance","choice2":"Dance","p26_fitness":0.05,"p26_dance":0.95,"p2_fitness":0.03,"p2_dance":0.96,"img":"img/c4_gt1384.jpg"},{"truth":"Dance","choice26":"Dance","choice2":"Dance","p26_fitness":0.05,"p26_dance":0.95,"p2_fitness":0.01,"p2_dance":0.98,"img":"img/c4_gt1385.jpg"},{"truth":"Dance","choice26":"Dance","choice2":"Dance","p26_fitness":0.05,"p26_dance":0.95,"p2_fitness":0.02,"p2_dance":0.97,"img":"img/c4_gt1386.jpg"},{"truth":"Dance","choice26":"Dance","choice2":"Dance","p26_fitness":0.02,"p26_dance":0.97,"p2_fitness":0.02,"p2_dance":0.97,"img":"img/c4_gt1387.jpg"}],"B26":{"Fitness station":{"n":19,"correct":18,"as_other":0,"as_none":1,"as_else":0,"choices":["Fitness station","none of these"]},"Dance":{"n":7,"correct":6,"as_other":0,"as_none":0,"as_else":1,"choices":["Charging station","Dance"]}},"B2":{"Fitness station":{"n":19,"correct":18,"as_other":0,"as_none":1,"as_else":0,"choices":["Fitness station","none of these"]},"Dance":{"n":7,"correct":7,"as_other":0,"as_none":0,"as_else":0,"choices":["Dance"]}},"opus":{"model":"claude-opus-5-5","entries_read":26,"entries_true":26,"classes_covered":26,"labels_exact":26,"median_iou_read":0.876,"median_iou_crop":1.0,"input_tokens":2751,"output_tokens":603,"cost_usd":0.0231,"latency_s":9.988,"cache_key":"fccc8e36798936931ad88c41bff0081bb3fe8a0156be784fe532ac97db8928f1"},"truth_icons":91,"base_truth_icons":89,"demo_cost":{"jev_calls":599,"jev_input_tokens":3037601,"jev_usd":0.1276,"opus_usd":0.0231,"total_usd":0.1507,"api_new_calls":29,"api_cache_hits":570},"manifest":{"commit":"7ee487b","dirty":true,"started":"2026-11-20T13:40:06+00:00"},"legend_fitness":"img/c4_leg_fitness.png","legend_dance":"img/c4_leg_dance.png","baseline_fps":["img/c4_basefp36.jpg","img/c4_basefp52.jpg"]},"c5":{"choice":{"loop":{"pred":96,"tp":77,"fp":19,"fn":14,"precision":0.802,"recall":0.846,"f1":0.824,"by_appearance":{"Artwork | #734a08":{"n":4,"found":4},"Bicycle rental | #0092da":{"n":3,"found":3},"Bus stop | #0092da":{"n":1,"found":1},"Bust | #734a08":{"n":1,"found":0},"Charging station | #0092da":{"n":4,"found":3},"Christian place of worship | #000000":{"n":1,"found":1},"Dance venue | #0c8416":{"n":2,"found":0},"Doctor / clinic | #bf0000":{"n":8,"found":8},"Drinking water | #734a08":{"n":1,"found":1},"Fitness centre / station | #0c8416":{"n":2,"found":2},"Hotel | #0092da":{"n":8,"found":7},"Memorial / Stolperstein | #734a08":{"n":21,"found":20},"Museum | #734a08":{"n":1,"found":1},"Parking | #0092da":{"n":2,"found":2},"Parking | #0092da@0.33":{"n":4,"found":4},"Pharmacy | #bf0000":{"n":2,"found":2},"Playground | #0c8416":{"n":1,"found":1},"Shelter | #666666":{"n":1,"found":0},"Statue | #734a08":{"n":1,"found":1},"Supermarket | #ac39ac":{"n":4,"found":4},"Taxi rank | #0092da":{"n":1,"found":1},"Traffic signals | #545454":{"n":18,"found":11}}},"strict":{"pred":73,"tp":69,"fp":4,"fn":22,"precision":0.945,"recall":0.758,"f1":0.841,"by_appearance":{"Artwork | #734a08":{"n":4,"found":3},"Bicycle rental | #0092da":{"n":3,"found":3},"Bus stop | #0092da":{"n":1,"found":0},"Bust | #734a08":{"n":1,"found":0},"Charging station | #0092da":{"n":4,"found":3},"Christian place of worship | #000000":{"n":1,"found":1},"Dance venue | #0c8416":{"n":2,"found":0},"Doctor / clinic | #bf0000":{"n":8,"found":5},"Drinking water | #734a08":{"n":1,"found":1},"Fitness centre / station | #0c8416":{"n":2,"found":2},"Hotel | #0092da":{"n":8,"found":7},"Memorial / Stolperstein | #734a08":{"n":21,"found":20},"Museum | #734a08":{"n":1,"found":0},"Parking | #0092da":{"n":2,"found":2},"Parking | #0092da@0.33":{"n":4,"found":4},"Pharmacy | #bf0000":{"n":2,"found":1},"Playground | #0c8416":{"n":1,"found":1},"Shelter | #666666":{"n":1,"found":0},"Statue | #734a08":{"n":1,"found":1},"Supermarket | #ac39ac":{"n":4,"found":4},"Taxi rank | #0092da":{"n":1,"found":1},"Traffic signals | #545454":{"n":18,"found":10}}},"gentle":{"pred":84,"tp":74,"fp":10,"fn":17,"precision":0.881,"recall":0.813,"f1":0.846,"by_appearance":{"Artwork | #734a08":{"n":4,"found":4},"Bicycle rental | #0092da":{"n":3,"found":3},"Bus stop | #0092da":{"n":1,"found":1},"Bust | #734a08":{"n":1,"found":0},"Charging station | #0092da":{"n":4,"found":3},"Christian place of worship | #000000":{"n":1,"found":1},"Dance venue | #0c8416":{"n":2,"found":0},"Doctor / clinic | #bf0000":{"n":8,"found":6},"Drinking water | #734a08":{"n":1,"found":1},"Fitness centre / station | #0c8416":{"n":2,"found":2},"Hotel | #0092da":{"n":8,"found":7},"Memorial / Stolperstein | #734a08":{"n":21,"found":20},"Museum | #734a08":{"n":1,"found":1},"Parking | #0092da":{"n":2,"found":2},"Parking | #0092da@0.33":{"n":4,"found":4},"Pharmacy | #bf0000":{"n":2,"found":1},"Playground | #0c8416":{"n":1,"found":1},"Shelter | #666666":{"n":1,"found":0},"Statue | #734a08":{"n":1,"found":1},"Supermarket | #ac39ac":{"n":4,"found":4},"Taxi rank | #0092da":{"n":1,"found":1},"Traffic signals | #545454":{"n":18,"found":11}}},"cost":{"calls":96,"tokens":791662,"latency_s":26.3,"usd":0.0332},"n_options":32,"api_new_calls":94},"c4":{"loop":{"pred":98,"tp":76,"fp":22,"precision":0.776,"recall":0.835,"f1":0.804},"strict":{"pred":71,"tp":67,"fp":4,"precision":0.944,"recall":0.736,"f1":0.827},"gentle":{"pred":83,"tp":72,"fp":11,"precision":0.867,"recall":0.791,"f1":0.828}},"renames":[{"file":"symbols/historic/memorial.svg","old":"Memorial","new":"Memorial / Stolperstein"},{"file":"symbols/amenity/doctors.svg","old":"Doctor","new":"Doctor / clinic"},{"file":"symbols/leisure/fitness.svg","old":"Fitness station","new":"Fitness centre / station"},{"file":"symbols/religion/christian.svg","old":"Church (Christian)","new":"Christian place of worship"},{"file":"symbols/leisure/dance.svg","old":"Dance","new":"Dance venue"}],"variants":[{"label":"Picnic site","class":"Picnic site / table","appearance":"#0c8416","img":"img/c5_row07.png","base_img":"img/c5_row07.png"},{"label":"Picnic table","class":"Picnic site / table","appearance":"#666666","img":"img/c5_row08.png","base_img":"img/c5_row07.png"},{"label":"Parking, restricted access","class":"Parking","appearance":"#0092da@0.33","img":"img/c5_row16.png","base_img":"img/c5_base15.png"},{"label":"Charging station, restricted access","class":"Charging station","appearance":"#0092da@0.33","img":"img/c5_row20.png","base_img":"img/c5_base19.png"},{"label":"Playground, restricted access","class":"Playground","appearance":"#0c8416@0.33","img":"img/c5_row23.png","base_img":"img/c5_base22.png"},{"label":"Drinking water, restricted access","class":"Drinking water","appearance":"#734a08@0.33","img":"img/c5_row28.png","base_img":"img/c5_base27.png"}],"opus":{"model":"claude-opus-5-5","entries_read":31,"entries_true":31,"classes_covered":31,"labels_exact":31,"median_iou_read":0.866,"median_iou_crop":1.0,"input_tokens":3175,"output_tokens":759,"cost_usd":0.0279,"latency_s":9.35,"cache_key":"0d060f0666e1107e2403b597bc18be292efc60685a826f6ad2abf77ca1733ff0"},"demo_cost":{"jev_calls":657,"jev_input_tokens":3332456,"jev_usd":0.14,"opus_usd":0.0279,"total_usd":0.1679,"api_new_calls":229,"api_cache_hits":428},"screen_missed":[{"label":"Bust","p":0.44,"n":1},{"label":"Shelter","p":0.16,"n":1},{"label":"Charging station, restricted access","p":0.37,"n":4},{"label":"Dance venue","p":0.41,"n":2}],"sheet":"img/c5_sheet.png","rows_lost":[{"label":"Doctor / clinic","gt_label":"Doctor / clinic","x":472.8,"y":417.6,"match":"TP","choice":"Pharmacy","choice_class":"Pharmacy","p_class":0.01,"p_none":0.07,"strict":false,"gentle":false},{"label":"Pharmacy","gt_label":"Pharmacy","x":424.0,"y":539.2,"match":"TP","choice":"Hospital","choice_class":"Hospital","p_class":0.15,"p_none":0.17,"strict":false,"gentle":false},{"label":"Doctor / clinic","gt_label":"Doctor / clinic","x":432.0,"y":64.8,"match":"TP","choice":"none of these","choice_class":null,"p_class":0.07,"p_none":0.55,"strict":false,"gentle":true},{"label":"Museum","gt_label":"Museum","x":118.4,"y":471.20000000000005,"match":"TP","choice":"none of these","choice_class":null,"p_class":0.16,"p_none":0.82,"strict":false,"gentle":true},{"label":"Doctor / clinic","gt_label":"Doctor / clinic","x":468.0,"y":528.8,"match":"TP","choice":"Pharmacy","choice_class":"Pharmacy","p_class":0.01,"p_none":0.02,"strict":false,"gentle":false},{"label":"Traffic signals","gt_label":"Traffic signals","x":507.2,"y":363.2,"match":"TP","choice":"none of these","choice_class":null,"p_class":0.02,"p_none":0.6,"strict":false,"gentle":true},{"label":"Artwork","gt_label":"Artwork","x":128.8,"y":512.8,"match":"TP","choice":"none of these","choice_class":null,"p_class":0.0,"p_none":0.55,"strict":false,"gentle":true},{"label":"Bus stop","gt_label":"Bus stop","x":118.4,"y":275.2,"match":"TP","choice":"none of these","choice_class":null,"p_class":0.12,"p_none":0.63,"strict":false,"gentle":true}],"manifest":{"commit":"acf3332","dirty":true,"started":"2026-11-20T14:30:26+00:00"}},"c6":{"summary":{"names":{"screening":{"pairs":24,"correct":20,"missed_present":1,"false_present":3,"by_class":{"Doctor / clinic":[0.91,0.95,0.85,0.87,0.88,0.95,0.9,0.94],"Pharmacy":[0.67,0.78,0.74,0.67,0.46,0.79,0.78,0.72],"Hospital":[0.89,0.78,0.8,0.28,0.23,0.37,0.21,0.49]},"truth_by_class":{"Doctor / clinic":[3,8,7,10,9,6,5,6],"Pharmacy":[0,0,1,4,1,1,1,0],"Hospital":[2,1,1,0,0,0,0,0]}},"loop":{"tp":64,"fp":14,"fn":2,"precision":0.821,"recall":0.97,"f1":0.889},"strict":{"tp":59,"fp":2,"fn":7,"precision":0.967,"recall":0.894,"f1":0.929},"gentle":{"tp":60,"fp":3,"fn":6,"precision":0.952,"recall":0.909,"f1":0.93},"icons":{"n":119,"correct":92,"confusion":{"Doctor / clinic":{"Hospital":12,"Doctor / clinic":72,"Museum":9,"none":2,"Viewpoint":1},"Pharmacy":{"Pharmacy":16,"Viewpoint":1,"Hospital":1},"Hospital":{"Hospital":4,"none":1}},"mean_p_true":0.767},"cost":{"loop_usd":0.1175,"choice_usd":0.0271,"new_calls":627}},"codes":{"screening":{"pairs":24,"correct":20,"missed_present":1,"false_present":3,"by_class":{"Doctor / clinic":[0.88,0.93,0.83,0.87,0.85,0.94,0.89,0.88],"Pharmacy":[0.7,0.7,0.67,0.59,0.46,0.74,0.74,0.64],"Hospital":[0.92,0.8,0.85,0.45,0.3,0.38,0.31,0.48]},"truth_by_class":{"Doctor / clinic":[3,8,7,10,9,6,5,6],"Pharmacy":[0,0,1,4,1,1,1,0],"Hospital":[2,1,1,0,0,0,0,0]}},"loop":{"tp":63,"fp":7,"fn":3,"precision":0.9,"recall":0.955,"f1":0.926},"strict":{"tp":49,"fp":2,"fn":17,"precision":0.961,"recall":0.742,"f1":0.838},"gentle":{"tp":54,"fp":4,"fn":12,"precision":0.931,"recall":0.818,"f1":0.871},"icons":{"n":119,"correct":101,"confusion":{"Doctor / clinic":{"none":8,"Doctor / clinic":85,"Museum":3},"Pharmacy":{"Pharmacy":11,"none":3,"Viewpoint":3,"Picnic site / table":1},"Hospital":{"Hospital":5}},"mean_p_true":0.839},"cost":{"loop_usd":0.1161,"choice_usd":0.0243,"new_calls":612}}},"tiles":[{"x":640,"y":0,"counts":{"Doctor / clinic":3,"Pharmacy":0,"Hospital":2},"img":"img/c6_tile0.jpg"},{"x":2560,"y":640,"counts":{"Doctor / clinic":8,"Pharmacy":0,"Hospital":1},"img":"img/c6_tile1.jpg"},{"x":1920,"y":1920,"counts":{"Doctor / clinic":7,"Pharmacy":1,"Hospital":1},"img":"img/c6_tile2.jpg"},{"x":1920,"y":1280,"counts":{"Doctor / clinic":10,"Pharmacy":4,"Hospital":0},"img":"img/c6_tile3.jpg"},{"x":640,"y":2560,"counts":{"Doctor / clinic":9,"Pharmacy":1,"Hospital":0},"img":"img/c6_tile4.jpg"},{"x":1920,"y":2560,"counts":{"Doctor / clinic":6,"Pharmacy":1,"Hospital":0},"img":"img/c6_tile5.jpg"},{"x":1280,"y":640,"counts":{"Doctor / clinic":5,"Pharmacy":1,"Hospital":0},"img":"img/c6_tile6.jpg"},{"x":640,"y":1280,"counts":{"Doctor / clinic":6,"Pharmacy":0,"Hospital":0},"img":"img/c6_tile7.jpg"}],"flips":{"names_wrong":[{"truth":"Doctor / clinic","names":"Museum","codes":"Doctor / clinic","img":"img/c6_icon0382.jpg"},{"truth":"Doctor / clinic","names":"Hospital","codes":"Doctor / clinic","img":"img/c6_icon0387.jpg"},{"truth":"Doctor / clinic","names":"Hospital","codes":"Doctor / clinic","img":"img/c6_icon0390.jpg"},{"truth":"Doctor / clinic","names":"Hospital","codes":"Doctor / clinic","img":"img/c6_icon0393.jpg"},{"truth":"Doctor / clinic","names":"Museum","codes":"Doctor / clinic","img":"img/c6_icon0398.jpg"},{"truth":"Doctor / clinic","names":"Hospital","codes":"Doctor / clinic","img":"img/c6_icon0406.jpg"},{"truth":"Doctor / clinic","names":"none","codes":"Doctor / clinic","img":"img/c6_icon0411.jpg"},{"truth":"Doctor / clinic","names":"Museum","codes":"Doctor / clinic","img":"img/c6_icon0417.jpg"}],"codes_wrong":[{"truth":"Doctor / clinic","names":"Doctor / clinic","codes":"none","img":"img/c6_icon0413.jpg"},{"truth":"Doctor / clinic","names":"Doctor / clinic","codes":"none","img":"img/c6_icon0426.jpg"},{"truth":"Doctor / clinic","names":"Doctor / clinic","codes":"none","img":"img/c6_icon0430.jpg"},{"truth":"Doctor / clinic","names":"Doctor / clinic","codes":"none","img":"img/c6_icon0451.jpg"},{"truth":"Doctor / clinic","names":"Doctor / clinic","codes":"Museum","img":"img/c6_icon0464.jpg"},{"truth":"Doctor / clinic","names":"Doctor / clinic","codes":"none","img":"img/c6_icon0469.jpg"},{"truth":"Doctor / clinic","names":"Doctor / clinic","codes":"Museum","img":"img/c6_icon0473.jpg"},{"truth":"Pharmacy","names":"Pharmacy","codes":"none","img":"img/c6_icon0478.jpg"}]},"agree":{"both":78,"only_names":14,"only_codes":23,"neither":4},"codes":[{"name":"Memorial / Stolperstein","code":"symbol 22"},{"name":"Statue","code":"symbol 35"},{"name":"Bust","code":"symbol 13"},{"name":"Artwork","code":"symbol 33"},{"name":"Museum","code":"symbol 32"},{"name":"Viewpoint","code":"symbol 15"},{"name":"Shelter","code":"symbol 38"},{"name":"Picnic site","code":"symbol 16"},{"name":"Picnic table","code":"symbol 26"},{"name":"Hotel","code":"symbol 24"},{"name":"Guest house","code":"symbol 14"},{"name":"Chalet","code":"symbol 37"},{"name":"Doctor / clinic","code":"symbol 27"},{"name":"Pharmacy","code":"symbol 40"},{"name":"Hospital","code":"symbol 36"},{"name":"Parking","code":"symbol 30"},{"name":"Parking, restricted access","code":"symbol 34"},{"name":"Bus stop","code":"symbol 39"},{"name":"Bicycle rental","code":"symbol 19"},{"name":"Charging station","code":"symbol 18"},{"name":"Charging station, restricted access","code":"symbol 17"},{"name":"Taxi rank","code":"symbol 11"},{"name":"Playground","code":"symbol 10"},{"name":"Playground, restricted access","code":"symbol 23"},{"name":"Fitness centre / station","code":"symbol 25"},{"name":"Christian place of worship","code":"symbol 12"},{"name":"Traffic signals","code":"symbol 20"},{"name":"Drinking water","code":"symbol 28"},{"name":"Drinking water, restricted access","code":"symbol 21"},{"name":"Supermarket","code":"symbol 31"},{"name":"Dance venue","code":"symbol 29"}],"icon_cost":{"calls":238,"tokens":1963560,"usd":0.0825},"lost":{"names":{"Doctor / clinic \u2192 Hospital":2,"Doctor / clinic \u2192 Museum":1,"Pharmacy \u2192 Hospital":1,"Doctor / clinic \u2192 none":1},"codes":{"Doctor / clinic \u2192 none":4,"Hospital \u2192 none":1,"Doctor / clinic \u2192 Museum":8,"Hospital \u2192 Shelter":1}},"loopfp":{"names":{"Pharmacy":11,"Doctor / clinic":3},"codes":{"Pharmacy":3,"Doctor / clinic":4}},"manifest":{"commit":"8c5c70f","dirty":true,"started":"2026-11-20T14:37:24+00:00"}},"c7":{"strategies":{"single":{"calls":96,"usd":0.0333,"strict":{"pred":73,"tp":69,"fp":4,"fn":22,"precision":0.945,"recall":0.758,"f1":0.841},"gentle":{"pred":84,"tp":74,"fp":10,"fn":17,"precision":0.881,"recall":0.813,"f1":0.846}},"adaptive":{"calls":156,"usd":0.054,"strict":{"pred":78,"tp":74,"fp":4,"fn":17,"precision":0.949,"recall":0.813,"f1":0.876},"gentle":{"pred":86,"tp":76,"fp":10,"fn":15,"precision":0.884,"recall":0.835,"f1":0.859}},"vote3":{"calls":288,"usd":0.0998,"strict":{"pred":77,"tp":73,"fp":4,"fn":18,"precision":0.948,"recall":0.802,"f1":0.869},"gentle":{"pred":86,"tp":76,"fp":10,"fn":15,"precision":0.884,"recall":0.835,"f1":0.859}},"vote5":{"calls":480,"usd":0.1663,"strict":{"pred":79,"tp":75,"fp":4,"fn":16,"precision":0.949,"recall":0.824,"f1":0.882},"gentle":{"pred":87,"tp":77,"fp":10,"fn":14,"precision":0.885,"recall":0.846,"f1":0.865}}},"threshold":0.95,"n":96,"changed":[{"gt_label":"Doctor / clinic","match":"TP","decision":{"single":"Pharmacy","adaptive":"Doctor / clinic","vote3":"Doctor / clinic","vote5":"Doctor / clinic"},"answers":[{"cls":"Pharmacy","row":"Pharmacy","top":0.8},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":1.0},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.99},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":1.0},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":1.0}],"calls":{"single":1,"adaptive":3,"vote3":3,"vote5":5},"img":"img/c7_crop01.jpg"},{"gt_label":"Pharmacy","match":"TP","decision":{"single":"Hospital","adaptive":"Pharmacy","vote3":"Pharmacy","vote5":"Pharmacy"},"answers":[{"cls":"Hospital","row":"Hospital","top":0.66},{"cls":"Pharmacy","row":"Pharmacy","top":0.99},{"cls":"Pharmacy","row":"Pharmacy","top":0.99},{"cls":"Pharmacy","row":"Pharmacy","top":0.99},{"cls":"Hospital","row":"Hospital","top":0.72}],"calls":{"single":1,"adaptive":3,"vote3":3,"vote5":5},"img":"img/c7_crop04.jpg"},{"gt_label":"Doctor / clinic","match":"TP","decision":{"single":"none","adaptive":"Doctor / clinic","vote3":"Doctor / clinic","vote5":"Doctor / clinic"},"answers":[{"cls":"none","row":"none of these","top":0.55},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.99},{"cls":"Hospital","row":"Hospital","top":0.52},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":1.0},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":1.0}],"calls":{"single":1,"adaptive":5,"vote3":3,"vote5":5},"img":"img/c7_crop09.jpg"},{"gt_label":"Hotel","match":"TP","decision":{"single":"Hotel","adaptive":"Hotel","vote3":"none","vote5":"Hotel"},"answers":[{"cls":"Hotel","row":"Hotel","top":0.99},{"cls":"none","row":"none of these","top":0.81},{"cls":"none","row":"none of these","top":0.69},{"cls":"Hotel","row":"Hotel","top":0.99},{"cls":"Hotel","row":"Hotel","top":0.99}],"calls":{"single":1,"adaptive":1,"vote3":3,"vote5":5},"img":"img/c7_crop18.jpg"},{"gt_label":"Museum","match":"TP","decision":{"single":"none","adaptive":"Museum","vote3":"Museum","vote5":"Museum"},"answers":[{"cls":"none","row":"none of these","top":0.82},{"cls":"Museum","row":"Museum","top":1.0},{"cls":"Museum","row":"Museum","top":1.0},{"cls":"Museum","row":"Museum","top":1.0},{"cls":"Museum","row":"Museum","top":1.0}],"calls":{"single":1,"adaptive":3,"vote3":3,"vote5":5},"img":"img/c7_crop29.jpg"},{"gt_label":"Doctor / clinic","match":"TP","decision":{"single":"Pharmacy","adaptive":"Pharmacy","vote3":"Museum","vote5":"Doctor / clinic"},"answers":[{"cls":"Pharmacy","row":"Pharmacy","top":0.95},{"cls":"Museum","row":"Museum","top":1.0},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.99},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.98},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.99}],"calls":{"single":1,"adaptive":1,"vote3":3,"vote5":5},"img":"img/c7_crop34.jpg"},{"gt_label":"Artwork","match":"TP","decision":{"single":"none","adaptive":"Artwork","vote3":"Artwork","vote5":"Artwork"},"answers":[{"cls":"none","row":"none of these","top":0.55},{"cls":"Artwork","row":"Artwork","top":0.86},{"cls":"Artwork","row":"Artwork","top":0.9},{"cls":"Artwork","row":"Artwork","top":0.93},{"cls":"none","row":"none of these","top":0.46}],"calls":{"single":1,"adaptive":3,"vote3":3,"vote5":5},"img":"img/c7_crop72.jpg"},{"gt_label":"Pharmacy","match":"FP","decision":{"single":"Hospital","adaptive":"Hospital","vote3":"Doctor / clinic","vote5":"Doctor / clinic"},"answers":[{"cls":"Hospital","row":"Hospital","top":0.98},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.99},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.99},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.99},{"cls":"Doctor / clinic","row":"Doctor / clinic","top":0.98}],"calls":{"single":1,"adaptive":1,"vote3":3,"vote5":5},"img":"img/c7_crop87.jpg"}],"n_unsure":29,"n_five":1,"api_new_calls":376,"manifest":{"commit":"8e36e08","dirty":true,"started":"2026-11-20T15:16:11+00:00"},"fp_strict":[{"label":"Memorial / Stolperstein","answers":["Memorial / Stolperstein","Memorial / Stolperstein","Memorial / Stolperstein","Memorial / Stolperstein","Memorial / Stolperstein"],"top":0.96},{"label":"Hotel","answers":["Hotel","Hotel","Hotel","Hotel","Statue"],"top":0.97},{"label":"Christian place of worship","answers":["Christian place of worship","Christian place of worship","Christian place of worship","Christian place of worship","Christian place of worship"],"top":1.0},{"label":"Charging station","answers":["Charging station","Charging station","Charging station","Charging station","Charging station"],"top":0.88}]},"c8":{"variants":{"none":{"loop":{"tp":77,"fp":19,"fn":14,"precision":0.802,"recall":0.846,"f1":0.824},"missed":["Bust","Shelter","Dance venue"],"loop_calls":657,"loop_usd":0.14,"single":{"calls":96,"usd":0.0333,"strict":{"pred":73,"tp":69,"fp":4,"fn":22,"precision":0.945,"recall":0.758,"f1":0.841},"gentle":{"pred":84,"tp":74,"fp":10,"fn":17,"precision":0.881,"recall":0.813,"f1":0.846}},"adaptive":{"calls":156,"usd":0.054,"strict":{"pred":78,"tp":74,"fp":4,"fn":17,"precision":0.949,"recall":0.813,"f1":0.876},"gentle":{"pred":86,"tp":76,"fp":10,"fn":15,"precision":0.884,"recall":0.835,"f1":0.859}},"vote5":{"calls":480,"usd":0.1663,"strict":{"pred":79,"tp":75,"fp":4,"fn":16,"precision":0.949,"recall":0.824,"f1":0.882},"gentle":{"pred":87,"tp":77,"fp":10,"fn":14,"precision":0.885,"recall":0.846,"f1":0.865}}},"core":{"loop":{"tp":70,"fp":12,"fn":21,"precision":0.854,"recall":0.769,"f1":0.809},"missed":["Statue","Shelter","Supermarket"],"loop_calls":588,"loop_usd":0.1252,"single":{"calls":82,"usd":0.0284,"strict":{"pred":68,"tp":63,"fp":5,"fn":28,"precision":0.926,"recall":0.692,"f1":0.792},"gentle":{"pred":76,"tp":65,"fp":11,"fn":26,"precision":0.855,"recall":0.714,"f1":0.778}},"adaptive":{"calls":146,"usd":0.0506,"strict":{"pred":72,"tp":66,"fp":6,"fn":25,"precision":0.917,"recall":0.725,"f1":0.81},"gentle":{"pred":78,"tp":67,"fp":11,"fn":24,"precision":0.859,"recall":0.736,"f1":0.793}},"vote5":{"calls":410,"usd":0.142,"strict":{"pred":75,"tp":69,"fp":6,"fn":22,"precision":0.92,"recall":0.758,"f1":0.831},"gentle":{"pred":80,"tp":69,"fp":11,"fn":22,"precision":0.863,"recall":0.758,"f1":0.807}}},"unmix":{"loop":{"tp":73,"fp":14,"fn":18,"precision":0.839,"recall":0.802,"f1":0.82},"missed":["Shelter"],"loop_calls":643,"loop_usd":0.137,"single":{"calls":87,"usd":0.0302,"strict":{"pred":73,"tp":68,"fp":5,"fn":23,"precision":0.932,"recall":0.747,"f1":0.829},"gentle":{"pred":82,"tp":71,"fp":11,"fn":20,"precision":0.866,"recall":0.78,"f1":0.821}},"adaptive":{"calls":143,"usd":0.0496,"strict":{"pred":75,"tp":70,"fp":5,"fn":21,"precision":0.933,"recall":0.769,"f1":0.843},"gentle":{"pred":83,"tp":72,"fp":11,"fn":19,"precision":0.867,"recall":0.791,"f1":0.828}},"vote5":{"calls":435,"usd":0.151,"strict":{"pred":76,"tp":70,"fp":6,"fn":21,"precision":0.921,"recall":0.769,"f1":0.838},"gentle":{"pred":84,"tp":72,"fp":12,"fn":19,"precision":0.857,"recall":0.791,"f1":0.823}}}},"per_class":[{"cls":"Bust","true":1,"none":[0,0],"core":[1,1],"unmix":[1,1]},{"cls":"Charging station","true":4,"none":[3,4],"core":[4,4],"unmix":[3,4]},{"cls":"Christian place of worship","true":1,"none":[1,2],"core":[1,2],"unmix":[1,1]},{"cls":"Dance venue","true":2,"none":[0,0],"core":[2,2],"unmix":[2,2]},{"cls":"Doctor / clinic","true":8,"none":[8,8],"core":[8,8],"unmix":[8,9]},{"cls":"Fitness centre / station","true":2,"none":[2,4],"core":[2,2],"unmix":[2,3]},{"cls":"Hotel","true":8,"none":[7,8],"core":[8,8],"unmix":[8,8]},{"cls":"Memorial / Stolperstein","true":21,"none":[20,22],"core":[19,24],"unmix":[17,22]},{"cls":"Parking","true":6,"none":[6,6],"core":[6,8],"unmix":[5,6]},{"cls":"Pharmacy","true":2,"none":[2,4],"core":[2,2],"unmix":[2,2]},{"cls":"Statue","true":1,"none":[1,6],"core":[0,0],"unmix":[1,2]},{"cls":"Supermarket","true":4,"none":[4,4],"core":[0,0],"unmix":[4,4]},{"cls":"Taxi rank","true":1,"none":[1,2],"core":[1,1],"unmix":[1,1]},{"cls":"Traffic signals","true":18,"none":[11,15],"core":[5,9],"unmix":[7,11]}],"tiles":[{"label":"original tile","img":"img/c8_tile.jpg"},{"label":"masked for Doctor / clinic","img":"img/c8_tile_docto.jpg"},{"label":"masked for Supermarket","img":"img/c8_tile_super.jpg"},{"label":"masked for Traffic signals","img":"img/c8_tile_traff.jpg"}],"legend":[{"label":"Memorial / Stolperstein","colours":["#734a08"],"kept":["#734a08"],"true":"#734a08","de":0.0,"orig":"img/c8_leg00_o.png","core":"img/c8_leg00_c.png","unmix":"img/c8_leg00_u.png"},{"label":"Statue","colours":["#734a08"],"kept":["#734a08"],"true":"#734a08","de":0.0,"orig":"img/c8_leg01_o.png","core":"img/c8_leg01_c.png","unmix":"img/c8_leg01_u.png"},{"label":"Bust","colours":["#734a08"],"kept":["#734a08"],"true":"#734a08","de":0.0,"orig":"img/c8_leg02_o.png","core":"img/c8_leg02_c.png","unmix":"img/c8_leg02_u.png"},{"label":"Artwork","colours":["#734a08"],"kept":["#734a08"],"true":"#734a08","de":0.0,"orig":"img/c8_leg03_o.png","core":"img/c8_leg03_c.png","unmix":"img/c8_leg03_u.png"},{"label":"Museum","colours":["#734a08"],"kept":["#734a08"],"true":"#734a08","de":0.0,"orig":"img/c8_leg04_o.png","core":"img/c8_leg04_c.png","unmix":"img/c8_leg04_u.png"},{"label":"Viewpoint","colours":["#734a08"],"kept":["#734a08"],"true":"#734a08","de":0.0,"orig":"img/c8_leg05_o.png","core":"img/c8_leg05_c.png","unmix":"img/c8_leg05_u.png"},{"label":"Shelter","colours":["#666666"],"kept":["#666666"],"true":"#666666","de":0.0,"orig":"img/c8_leg06_o.png","core":"img/c8_leg06_c.png","unmix":"img/c8_leg06_u.png"},{"label":"Picnic site","colours":["#0e8517"],"kept":["#0e8517"],"true":"#0c8416","de":0.4,"orig":"img/c8_leg07_o.png","core":"img/c8_leg07_c.png","unmix":"img/c8_leg07_u.png"},{"label":"Picnic table","colours":["#666666"],"kept":["#666666"],"true":"#666666","de":0.0,"orig":"img/c8_leg08_o.png","core":"img/c8_leg08_c.png","unmix":"img/c8_leg08_u.png"},{"label":"Hotel","colours":["#0092da"],"kept":["#0092da"],"true":"#0092da","de":0.0,"orig":"img/c8_leg09_o.png","core":"img/c8_leg09_c.png","unmix":"img/c8_leg09_u.png"},{"label":"Guest house","colours":["#0092da","#a2d0e4"],"kept":["#0092da","#a2d0e4"],"true":"#0092da","de":0.0,"orig":"img/c8_leg10_o.png","core":"img/c8_leg10_c.png","unmix":"img/c8_leg10_u.png"},{"label":"Chalet","colours":["#0092da","#a2d0e4"],"kept":["#0092da","#a2d0e4"],"true":"#0092da","de":0.0,"orig":"img/c8_leg11_o.png","core":"img/c8_leg11_c.png","unmix":"img/c8_leg11_u.png"},{"label":"Doctor / clinic","colours":["#bf0000","#ffffff"],"kept":["#bf0000"],"true":"#bf0000","de":0.0,"orig":"img/c8_leg12_o.png","core":"img/c8_leg12_c.png","unmix":"img/c8_leg12_u.png"},{"label":"Pharmacy","colours":["#bf0000","#ffffff"],"kept":["#bf0000"],"true":"#bf0000","de":0.0,"orig":"img/c8_leg13_o.png","core":"img/c8_leg13_c.png","unmix":"img/c8_leg13_u.png"},{"label":"Hospital","colours":["#bf0000","#ffffff"],"kept":["#bf0000"],"true":"#bf0000","de":0.0,"orig":"img/c8_leg14_o.png","core":"img/c8_leg14_c.png","unmix":"img/c8_leg14_u.png"},{"label":"Parking","colours":["#0092da"],"kept":["#0092da"],"true":"#0092da","de":0.0,"orig":"img/c8_leg15_o.png","core":"img/c8_leg15_c.png","unmix":"img/c8_leg15_u.png"},{"label":"Parking, restricted access","colours":["#a2d0e4"],"kept":["#a2d0e4"],"true":"#a2d0e4","de":0.0,"orig":"img/c8_leg16_o.png","core":"img/c8_leg16_c.png","unmix":"img/c8_leg16_u.png"},{"label":"Bus stop","colours":["#0092da"],"kept":["#0092da"],"true":"#0092da","de":0.0,"orig":"img/c8_leg17_o.png","core":"img/c8_leg17_c.png","unmix":"img/c8_leg17_u.png"},{"label":"Bicycle rental","colours":["#0092da"],"kept":["#0092da"],"true":"#0092da","de":0.0,"orig":"img/c8_leg18_o.png","core":"img/c8_leg18_c.png","unmix":"img/c8_leg18_u.png"},{"label":"Charging station","colours":["#0092da"],"kept":["#0092da"],"true":"#0092da","de":0.0,"orig":"img/c8_leg19_o.png","core":"img/c8_leg19_c.png","unmix":"img/c8_leg19_u.png"},{"label":"Charging station, restricted access","colours":["#a2d0e4"],"kept":["#a2d0e4"],"true":"#a2d0e4","de":0.0,"orig":"img/c8_leg20_o.png","core":"img/c8_leg20_c.png","unmix":"img/c8_leg20_u.png"},{"label":"Taxi rank","colours":["#0092da"],"kept":["#0092da"],"true":"#0092da","de":0.0,"orig":"img/c8_leg21_o.png","core":"img/c8_leg21_c.png","unmix":"img/c8_leg21_u.png"},{"label":"Playground","colours":["#0e8517"],"kept":["#0e8517"],"true":"#0c8416","de":0.4,"orig":"img/c8_leg22_o.png","core":"img/c8_leg22_c.png","unmix":"img/c8_leg22_u.png"},{"label":"Playground, restricted access","colours":["#a7cca4"],"kept":["#a7cca4"],"true":"#a6cca3","de":0.7,"orig":"img/c8_leg23_o.png","core":"img/c8_leg23_c.png","unmix":"img/c8_leg23_u.png"},{"label":"Fitness centre / station","colours":["#0e8517"],"kept":["#0e8517"],"true":"#0c8416","de":0.4,"orig":"img/c8_leg24_o.png","core":"img/c8_leg24_c.png","unmix":"img/c8_leg24_u.png"},{"label":"Christian place of worship","colours":["#000000"],"kept":["#000000"],"true":"#000000","de":0.0,"orig":"img/c8_leg25_o.png","core":"img/c8_leg25_c.png","unmix":"img/c8_leg25_u.png"},{"label":"Traffic signals","colours":["#666666","#ffffff"],"kept":["#666666"],"true":"#545454","de":7.4,"orig":"img/c8_leg26_o.png","core":"img/c8_leg26_c.png","unmix":"img/c8_leg26_u.png"},{"label":"Drinking water","colours":["#734a08"],"kept":["#734a08"],"true":"#734a08","de":0.0,"orig":"img/c8_leg27_o.png","core":"img/c8_leg27_c.png","unmix":"img/c8_leg27_u.png"},{"label":"Drinking water, restricted access","colours":["#c8b89f"],"kept":["#c8b89f"],"true":"#c8b99f","de":0.7,"orig":"img/c8_leg28_o.png","core":"img/c8_leg28_c.png","unmix":"img/c8_leg28_u.png"},{"label":"Supermarket","colours":["#ac39ac"],"kept":["#ac39ac"],"true":"#ac39ac","de":0.0,"orig":"img/c8_leg29_o.png","core":"img/c8_leg29_c.png","unmix":"img/c8_leg29_u.png"},{"label":"Dance venue","colours":["#0e8517"],"kept":["#0e8517"],"true":"#0c8416","de":0.4,"orig":"img/c8_leg30_o.png","core":"img/c8_leg30_c.png","unmix":"img/c8_leg30_u.png"}],"palette_cost":0.038,"new_calls":1740,"noise":{"masks":{"none":{"runs":[{"rep":0,"loop":{"pred":92,"tp":73,"fp":19,"fn":14,"precision":0.793,"recall":0.839,"f1":0.816},"adaptive":{"pred":74,"tp":70,"fp":4,"fn":17,"precision":0.946,"recall":0.805,"f1":0.87},"screen_missed":["Bust","Dance venue","Shelter"],"new_calls":0,"usd":0.1941},{"rep":1,"loop":{"pred":91,"tp":68,"fp":23,"fn":19,"precision":0.747,"recall":0.782,"f1":0.764},"adaptive":{"pred":67,"tp":61,"fp":6,"fn":26,"precision":0.91,"recall":0.701,"f1":0.792},"screen_missed":["Bust","Dance venue","Shelter"],"new_calls":848,"usd":0.2035},{"rep":2,"loop":{"pred":84,"tp":66,"fp":18,"fn":21,"precision":0.786,"recall":0.759,"f1":0.772},"adaptive":{"pred":67,"tp":62,"fp":5,"fn":25,"precision":0.925,"recall":0.713,"f1":0.805},"screen_missed":["Bust","Dance venue","Shelter"],"new_calls":786,"usd":0.1887}],"n_truth":87,"loop_f1":{"mean":0.784,"min":0.764,"max":0.816},"adaptive_f1":{"mean":0.822,"min":0.792,"max":0.87},"found_k_of_n":{"3":64,"2":5,"1":5,"0":13},"flaky_by_class":{"Traffic signals":9,"Memorial / Stolperstein":1},"centre_spread_px":{"median":0.53,"p90":1.17}},"unmix":{"runs":[{"rep":0,"loop":{"pred":82,"tp":69,"fp":13,"fn":18,"precision":0.841,"recall":0.793,"f1":0.817},"adaptive":{"pred":71,"tp":66,"fp":5,"fn":21,"precision":0.93,"recall":0.759,"f1":0.835},"screen_missed":["Shelter"],"new_calls":0,"usd":0.1867},{"rep":1,"loop":{"pred":82,"tp":68,"fp":14,"fn":19,"precision":0.829,"recall":0.782,"f1":0.805},"adaptive":{"pred":71,"tp":64,"fp":7,"fn":23,"precision":0.901,"recall":0.736,"f1":0.81},"screen_missed":["Shelter"],"new_calls":670,"usd":0.1915},{"rep":2,"loop":{"pred":81,"tp":68,"fp":13,"fn":19,"precision":0.84,"recall":0.782,"f1":0.81},"adaptive":{"pred":75,"tp":66,"fp":9,"fn":21,"precision":0.88,"recall":0.759,"f1":0.815},"screen_missed":["Shelter"],"new_calls":687,"usd":0.1941}],"n_truth":87,"loop_f1":{"mean":0.811,"min":0.805,"max":0.817},"adaptive_f1":{"mean":0.82,"min":0.81,"max":0.835},"found_k_of_n":{"3":66,"2":1,"1":5,"0":15},"flaky_by_class":{"Traffic signals":3,"Memorial / Stolperstein":1,"Parking":1,"Charging station":1},"centre_spread_px":{"median":0.53,"p90":1.14}}}},"manifest":{"commit":"835404a","dirty":true,"started":"2026-11-20T16:13:28+00:00"}}};
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 2) => v == null ? "–" : Number(v).toFixed(d);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const usd = v => "$" + Number(v).toFixed(4);
+const stat = (v, l, e) => `<div class="stat"><b>${v}</b><span>${l}</span>${e ? `<em>${e}</em>` : ""}</div>`;
+const metaLine = (m, extra) => [...extra, m ? `commit ${m.commit}${m.dirty ? " (dirty)" : ""}` : null, m ? `run ${m.started.slice(0, 16).replace("T", " ")} UTC` : null].filter(Boolean).map(s => `<span>${s}</span>`).join("");
+
+// ---------- tabs ----------
+$("tabs").innerHTML = D.tabs.map(t => `<button type="button" role="tab" id="tab-${t.id}" data-id="${t.id}">${esc(t.title)}<small>${t.date}</small></button>`).join("");
+function show(id) {
+  if (!D.tabs.some(t => t.id === id)) id = D.tabs[0].id;
+  D.tabs.forEach(t => { $("panel-" + t.id).hidden = t.id !== id; $("tab-" + t.id).setAttribute("aria-selected", t.id === id); });
+}
+[...$("tabs").children].forEach(b => b.addEventListener("click", () => { try { history.replaceState(null, "", "#" + b.dataset.id); } catch (e) {} show(b.dataset.id); }));
+window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+document.addEventListener("click", e => { const a = e.target.closest('a[href^="#"]'); if (a) { e.preventDefault(); const id = a.getAttribute("href").slice(1); try { history.replaceState(null, "", "#" + id); } catch (er) {} show(id); window.scrollTo(0, 0); } });
+
+// ---------- run 1 ----------
+(() => {
+  const B = D.base, m = B.metrics, c = B.cost, t = B.tile, L = B.legend;
+  document.querySelectorAll("[data-b]").forEach(img => img.src = B.images[img.dataset.b]);
+  $("b-meta").innerHTML = metaLine(B.manifest, [`tile origin (${t.x}, ${t.y}) px`, `zoom 17 · ~${t.ground_m_approx} m across`]);
+  $("b-stats").innerHTML = stat(fmt(m.f1), "F1") + stat(fmt(m.precision), "precision") + stat(fmt(m.recall), "recall") +
+    stat(fmt(m.median_err_m_ground, 1) + " m", "median position error") + stat("$" + fmt(c.total_usd), "API cost") + stat(c.jev_calls + 1, "model calls");
+  $("b-legend-text").textContent = `Opus found all ${L.entries_read} entries with exactly the printed labels. Its boxes had a median IoU of ${fmt(L.median_iou_read)} with the true symbol boxes; after tightening, every crop matched its true box exactly (median IoU ${fmt(L.median_iou_crop)}). One call: ${L.input_tokens.toLocaleString()} input and ${L.output_tokens} output tokens, $${fmt(L.cost_usd, 3)}, ${fmt(L.latency_s, 1)} s.`;
+  $("b-crops").innerHTML = B.crops.map(k => `<div class="crop"><img src="${k.img}" alt=""><span>${esc(k.label)}</span><em>IoU ${fmt(k.iou_read)}→${fmt(k.iou_crop)}</em></div>`).join("");
+  $("b-tile-text").textContent = `Chosen automatically as the 640 px window holding the most classes: ${t.classes_present} of the 25 classes and ${t.icons_present} icons, about ${t.ground_m_approx} m across. It is the busiest square of the city-centre render, so it is a hard case for both accuracy and cost.`;
+  const S = [...B.screening].sort((a, b) => b.p_present - a.p_present);
+  $("b-bars").innerHTML = `<div class="axis"><span></span><div class="ticks"><span>0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1</span></div><span>in tile</span></div>` +
+    S.map(s => `<div class="bar${s.n_true > 0 && !s.screened_in ? " missed" : ""}"><span class="lab" title="${esc(s.label)}">${esc(s.label)}</span><div class="track"><div class="fill" style="width:${s.p_present * 100}%;background:${s.n_true ? "var(--tp)" : "var(--absent)"}"></div><div class="thr"></div></div><span class="val">${fmt(s.p_present)} · ${s.n_true}</span></div>`).join("");
+  const present = B.screening.filter(s => s.n_true > 0), inn = B.screening.filter(s => s.screened_in);
+  $("b-screen-text").textContent = `${inn.length} classes went on to the search loop, all of them really in the tile. The ${B.screening.length - present.length} absent classes were all screened out. Two present classes were missed: Bust and Shelter. Screening took ${B.screening.length} calls.`;
+  $("b-frames").innerHTML = B.frames.map(f => `<div class="frame"><div class="pair"><img src="${f.before}" alt="${esc(f.label)} sub-tile with Jev's box"><img src="${f.after}" alt="Same sub-tile after inpainting"></div>
+    <div class="capr"><span class="pill ${f.match}">${f.match === "TP" ? "correct" : f.match === "FP" ? "false positive" : f.match}</span><span>${esc(f.label)}</span><span>sub-tile (${f.sub.join(", ")})</span><span>pass ${f.pass}</span><span>P ${fmt(f.p_present)}</span><span>box conf ${fmt(f.box_conf)}</span></div></div>`).join("");
+  const A = B.actions;
+  $("b-loop-text").textContent = `Across the ${inn.length} classes the loop made ${Object.values(A).reduce((x, y) => x + y, 0)} calls: ${A["detect + inpaint"] || 0} found and removed a symbol, ${A["stop: not present"] || 0} ended a sub-tile with "none left", and ${A["stop: box on removed area"] || 0} stopped because the box landed on painted-out pixels.`;
+  $("b-score-text").textContent = `Duplicates within 4 px were merged. Pixel centres were converted to EPSG:3857 with the GeoTIFF's transform and written to predictions.gpkg. Matching is one-to-one, same class, within 7 px (about 5.6 m on the ground): ${m.tp} correct, ${m.fp} false positives, ${m.fn} missed. Correct points were a median ${fmt(m.median_err_px, 1)} px (${fmt(m.median_err_m_ground, 1)} m) from the true icon centre.`;
+  $("b-classes").innerHTML = Object.entries(m.per_class).sort((a, b) => b[1].true - a[1].true || a[0].localeCompare(b[0]))
+    .map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v.true}</td><td class="num">${v.pred}</td><td class="num">${v.tp}</td><td class="num">${v.true ? fmt(v.tp / v.true) : "–"}</td><td class="num">${v.pred ? fmt(v.tp / v.pred) : "–"}</td></tr>`).join("");
+  $("b-cost").innerHTML = [["Opus 5.5: read legend", 1, `${L.input_tokens.toLocaleString()} in / ${L.output_tokens} out`, c.opus_usd],
+    ["Jev: screening", B.screening.length, "", null], ["Jev: search loop", c.jev_calls - B.screening.length, "", null],
+    ["Jev total", c.jev_calls, c.jev_input_tokens.toLocaleString(), c.jev_usd], ["Total", c.jev_calls + 1, "", c.total_usd]]
+    .map(([a, b, t2, u]) => `<tr><td>${a}</td><td class="num">${b}</td><td class="num">${t2}</td><td class="num">${u == null ? "" : "$" + fmt(u, 3)}</td></tr>`).join("");
+  $("b-cost-text").textContent = `Each Jev call costs about 5,070 input tokens, so cost follows the number of calls. The loop ran sequentially in ${Math.round(B.timing_s.search_loop)} s. This dense tile cost about $${fmt(c.total_usd / ((t.ground_m_approx / 1000) ** 2), 2)} per km².`;
+})();
+
+// ---------- change 1 ----------
+(() => {
+  const C = D.c1, S = C.summary, s1 = S.single, b1 = S.batch, cs = S.cost.single, cb = S.cost.batch;
+  $("c1-meta").innerHTML = metaLine(C.manifest, ["stage exp-multiimage", `${S.tiles} tiles · ${S.pairs} class–tile pairs`]);
+  $("c1-verdict").textContent = `Screening quality stayed about the same (accuracy ${fmt(s1.accuracy)} → ${fmt(b1.accuracy)}), at ${(cs.usd / cb.usd).toFixed(0)}× lower cost and ${(cs.latency_s / cb.latency_s).toFixed(0)}× less time. One case went badly wrong: batching missed a class with 9 icons.`;
+  $("c1-stats").innerHTML = stat(fmt(s1.accuracy) + " → " + fmt(b1.accuracy), "accuracy, single → batch") +
+    stat(fmt(S.agreement_at_0_5 ?? S["agreement_at_0.5"]), "decisions identical") + stat(usd(cs.usd) + " → " + usd(cb.usd), "cost for 8 tiles") +
+    stat(fmt(cs.latency_s, 0) + " s → " + fmt(cb.latency_s, 0) + " s", "time, sequential") + stat(cs.calls + " → " + cb.calls, "calls");
+  $("c1-before").textContent =
+`for label, legend in classes:          # 25 calls per tile
+  system_one(
+    state = {"map": <tile 1280×1280 PNG>},
+    questions = {
+      "present": Noul("Does \`map\` contain at least one
+         instance of the map symbol shown in this legend
+         excerpt <legend>, which the legend labels '<label>'?
+         Only count symbols drawn exactly like it (same shape
+         and colour); ignore patches of plain background.")
+    })                                   # 1 legend excerpt attached`;
+  $("c1-after").textContent =
+`system_one(                             # 1 call per tile
+  state = {"map": <tile 1280×1280 PNG>},
+  questions = {
+    "q00": Noul(<same prompt> , '<Memorial>' ,  <legend 0>),
+    "q01": Noul(<same prompt> , '<Statue>'   ,  <legend 1>),
+    ...
+    "q24": Noul(<same prompt> , '<Supermarket>', <legend 24>),
+  })                                     # 25 legend excerpts attached`;
+  $("c1-strip").innerHTML = C.legend_strip.map(l => `<img src="${l.img}" alt="${esc(l.label)}" title="${esc(l.label)}">`).join("");
+  $("c1-overview").src = C.overview;
+  $("c1-tiles").innerHTML = C.per_tile.map(t => `<div class="tilecard${t.disagree ? " hot" : ""}"><img src="${t.img}" alt="Tile ${t.tile}"><b>Tile ${t.tile}</b>
+    <span class="mono">${t.present} classes · ${t.icons} icons</span><span class="mono">acc ${fmt(t.acc_single)} → ${fmt(t.acc_batch)}${t.disagree ? ` · ${t.disagree} differ` : ""}</span></div>`).join("");
+  $("c1-table").innerHTML = [["single (before)", s1, cs], ["batch (after)", b1, cb]].map(([n, s, c]) =>
+    `<tr${n.startsWith("batch") ? ' class="hl"' : ""}><td>${n}</td><td class="num">${fmt(s.accuracy, 3)}</td><td class="num">${fmt(s.auc, 3)}</td><td class="num">${s.missed_present} / ${s.n_present}</td><td class="num">${s.false_present} / ${s.n_absent}</td><td class="num">${c.calls}</td><td class="num">${c.tokens.toLocaleString()}</td><td class="num">${usd(c.usd)}</td><td class="num">${fmt(c.latency_s, 1)} s</td></tr>`).join("");
+  $("c1-agree").textContent = `The two methods give the same yes/no decision on ${Math.round(S["agreement_at_0.5"] * 200)} of 200 pairs. Their probabilities correlate at ${fmt(S.corr)}, with a mean absolute difference of ${fmt(S.mean_abs_diff, 3)}.`;
+  const sv = $("c1-scatter"), P = 40, Z = 340, X = v => P + v * Z, Y = v => 400 - P - v * Z;
+  let g = `<rect x="${P}" y="${400 - P - Z}" width="${Z}" height="${Z}" fill="none" stroke="var(--rule)"/>`;
+  [0, 0.25, 0.5, 0.75, 1].forEach(v => { g += `<text x="${X(v)}" y="${400 - P + 16}" text-anchor="middle">${v}</text><text x="${P - 8}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`; });
+  g += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0.6"/>`;
+  g += `<line x1="${X(0.5)}" y1="${Y(0)}" x2="${X(0.5)}" y2="${Y(1)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0.6"/><line x1="${X(0)}" y1="${Y(0.5)}" x2="${X(1)}" y2="${Y(0.5)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0.6"/>`;
+  C.pairs.forEach(p => { g += `<circle cx="${X(p.p_single)}" cy="${Y(p.p_batch)}" r="3.6" fill="${p.n_true ? "var(--tp)" : "var(--absent)"}" fill-opacity="0.75"><title>tile ${p.tile} · ${esc(p.label)} · single ${p.p_single} · batch ${p.p_batch} · icons ${p.n_true}</title></circle>`; });
+  const ex = C.example.row; g += `<circle cx="${X(ex.p_single)}" cy="${Y(ex.p_batch)}" r="9" fill="none" stroke="var(--accent)" stroke-width="2"/><text x="${X(ex.p_single) - 12}" y="${Y(ex.p_batch) + 4}" text-anchor="end" style="fill:var(--accent)">tile 6 Doctor</text>`;
+  g += `<text x="${X(0.5)}" y="396" text-anchor="middle">P(present), single calls</text><text x="12" y="${Y(0.5)}" text-anchor="middle" transform="rotate(-90 12 ${Y(0.5)})">P(present), batched call</text>`;
+  sv.innerHTML = g;
+  const perTileTok = cb.tokens / cb.calls, perSingle = cs.tokens / cs.calls, legTok = (perTileTok - perSingle) / 24;
+  $("c1-tokens").textContent = `A single call averages ${Math.round(perSingle).toLocaleString()} input tokens; a batched call ${Math.round(perTileTok).toLocaleString()}. The difference is 24 extra legend excerpts, so each 280 px excerpt costs about ${Math.round(legTok)} tokens and the 1,280 px tile about ${Math.round(perSingle - legTok).toLocaleString()}. The single-call method pays for the tile 25 times per tile; batching pays for it once.`;
+  $("c1-dis").innerHTML = C.disagreements.map(d => { const truth = d.n_true > 0, sr = (d.p_single >= 0.5) === truth, br = (d.p_batch >= 0.5) === truth;
+    return `<tr${d.tile === C.example.tile && d.label === "Doctor" ? ' class="hl"' : ""}><td class="mono">${d.tile}</td><td>${esc(d.label)}</td><td class="num">${d.n_true}</td><td class="num">${fmt(d.p_single)}</td><td class="num">${fmt(d.p_batch)}</td><td>${sr ? '<span class="pill good">single</span>' : '<span class="pill good">batch</span>'}</td></tr>`; }).join("");
+  $("c1-ex-tile").src = C.example.img; $("c1-ex-leg").src = C.example.legend;
+  $("c1-ex-cap").textContent = `Tile 6 contains ${ex.n_true} Doctor icons. Single call: P = ${fmt(ex.p_single)} (screened in). Batched call: P = ${fmt(ex.p_batch)} (screened out, so all ${ex.n_true} would be missed). The other 23 answers on this tile agree between the two methods.`;
+})();
+
+// ---------- change 2 ----------
+(() => {
+  const C = D.c2, s = C.summary;
+  $("c2-meta").innerHTML = metaLine(C.manifest, ["stage exp-multiimage", `${C.before.pred} detections on the baseline tile`]);
+  $("c2-verdict").textContent = `The Choice check removed ${s.fp_removed} of ${s.fp_total} false positives, including every look-alike confusion. Precision rose from ${fmt(C.before.precision)} to ${fmt(C.strict.precision)}. It also removed ${s.tp_lost} correct detections, so F1 barely moved (${fmt(C.before.f1, 3)} → ${fmt(C.strict.f1, 3)}). The gentler rule keeps more of the correct detections.`;
+  $("c2-stats").innerHTML = stat(fmt(C.before.precision) + " → " + fmt(C.strict.precision), "precision") + stat(fmt(C.before.recall) + " → " + fmt(C.strict.recall), "recall") +
+    stat(fmt(C.before.f1, 3) + " → " + fmt(C.strict.f1, 3), "F1 (strict)", `gentle ${fmt(C.gentle.f1, 3)}`) + stat(s.fp_removed + " / " + s.fp_total, "false positives removed") + stat(usd(s.cost.usd), "added cost", `${s.cost.calls} calls`);
+  $("c2-before").textContent =
+`search loop (per class, per sub-tile)
+  → box centre becomes a detection
+  → 94 detections, written to the GeoPackage`;
+  $("c2-after").textContent =
+`for each of the 94 detections:
+  system_one(
+    state = {"crop": <40×40 px of the original tile
+                      around the point, ×8 → 320×320 PNG>},
+    questions = {"which": Choice(
+      "Which of these legend symbols is drawn at
+       the centre of \`crop\`?",
+      criteria = {
+        "Memorial": <legend excerpt>,  ... 25 image options,
+        "none of these": "The centre of \`crop\` shows none of
+           these symbols (background, text, or another symbol)."
+      })})
+  keep if choice == detection's class        # strict rule`;
+  $("c2-options").innerHTML = C.options.map(o => `<img src="${o.img}" alt="${esc(o.label)}" title="${esc(o.label)}">`).join("") +
+    `<div style="display:flex;align-items:center;justify-content:center;border:1px dashed var(--rule);border-radius:3px;font-size:0.7rem;text-align:center;padding:4px">none of these</div>`;
+  $("c2-table").innerHTML = [["before (loop output)", C.before], ["after, strict rule", C.strict], ["after, gentle rule*", C.gentle]].map(([n, v], i) =>
+    `<tr${i === 1 ? ' class="hl"' : ""}><td>${n}</td><td class="num">${v.pred}</td><td class="num">${v.tp}</td><td class="num">${v.fp}</td><td class="num">${fmt(v.precision, 3)}</td><td class="num">${fmt(v.recall, 3)}</td><td class="num">${fmt(v.f1, 3)}</td></tr>`).join("") +
+    `<tr><td colspan="7" class="cap">* gentle: same Jev answers, re-scored with the keep rule above. No new calls.</td></tr>`;
+  $("c2-cost").textContent = `The check added ${s.cost.calls} calls (about ${Math.round(s.cost.tokens / s.cost.calls).toLocaleString()} tokens each, because 25 option images are attached), ${usd(s.cost.usd)} and ${fmt(s.cost.latency_s, 0)} s sequential. That is about $${fmt(s.cost.usd / s.cost.calls, 4)} per detection, against the loop's ${C.loop_calls} calls and ${usd(C.loop_usd)} for the same tile.`;
+  $("c2-cards").innerHTML = C.cards.map(c => { const fp = c.match === "FP";
+    const cls = fp ? (c.keep ? "bad" : "good") : "warn";
+    const outcome = fp ? (c.keep ? "✗ Kept: the false positive stays" : "✓ Removed: the false positive is fixed") : "✗ Removed: a correct detection is lost";
+    return `<div class="card ${cls}"><div class="why">Loop claimed</div><div class="claim">${esc(c.label)}</div>
+      <div class="why"><b>${fp ? "Scored wrong" : "Scored correct"}</b>: ${esc(c.reason.text.replace(/^[^:]*: /, ""))}</div>
+      <img src="${c.img}" alt="Crop around the ${esc(c.label)} detection">
+      <div class="row"><span>Jev chose</span><b>${esc(c.choice)}</b></div>
+      <div class="row"><span>P(${esc(c.label)}) · P(none)</span><b class="mono">${fmt(c.p_own)} · ${fmt(c.p_none)}</b></div>
+      <div class="verdictline">${outcome}</div>
+      <div class="why">Gentle rule: ${fp ? (c.gentle_keep ? "kept (still wrong)" : "removed (fixed)") : (c.gentle_keep ? "kept (fine)" : "removed (lost)")}</div></div>`; }).join("");
+})();
+
+// ---------- change 3 ----------
+(() => {
+  const C = D.c3, S = C.summary, V = [["wide", "40 px (Change 2)"], ["box", "Jev's box + 3 px"], ["sq20", "20 px square"]];
+  const best = S.box.strict;
+  $("c3-meta").innerHTML = metaLine(C.manifest, ["stage exp-crop", `${S.before.pred} detections · ${S.api_new_calls} new calls`]);
+  $("c3-verdict").textContent = `Cropping to Jev's own box (plus 3 px) gave the best result: precision ${fmt(S.wide.strict.precision)} → ${fmt(best.precision)}, recall ${fmt(S.wide.strict.recall)} → ${fmt(best.recall)}, F1 ${fmt(S.wide.strict.f1, 3)} → ${fmt(best.f1, 3)}. A small gain, about two detections. With the gentle rule it loses only ${S.box.tp_lost_gentle} correct detection.`;
+  $("c3-stats").innerHTML = stat(fmt(S.wide.strict.f1, 3) + " → " + fmt(best.f1, 3), "F1, strict rule", "wide → box") +
+    stat(fmt(S.wide.strict.precision) + " → " + fmt(best.precision), "precision") + stat(S.wide.fp_removed_strict + " → " + S.box.fp_removed_strict, "false positives removed", "of 20") +
+    stat(S.wide.tp_lost_strict + " → " + S.box.tp_lost_strict, "correct detections lost") + stat(usd(S.cost.box.usd), "cost per variant", `${S.cost.box.calls} calls`);
+  $("c3-ex-text").textContent = `A Statue false positive on an Artwork icon, as each crop showed it, next to the Artwork legend option. In the wide crop the icon is small and surrounded by context. In the tighter crops it fills the frame at the same scale as the option.`;
+  $("c3-example").innerHTML = [["wide", C.example.wide], ["box", C.example.box], ["sq20", C.example.sq20], ["Artwork option", C.example.option]]
+    .map(([n, src]) => `<div class="tilecard"><img src="${src}" alt="${n}"><b>${n}</b></div>`).join("");
+  let rows = `<tr><td>none</td><td>loop output</td><td class="num">${S.before.pred}</td><td class="num">–</td><td class="num">–</td><td class="num">${fmt(S.before.precision, 3)}</td><td class="num">${fmt(S.before.recall, 3)}</td><td class="num">${fmt(S.before.f1, 3)}</td></tr>`;
+  V.forEach(([v, name]) => ["strict", "gentle"].forEach(rule => { const m = S[v][rule];
+    rows += `<tr${v === "box" && rule === "strict" ? ' class="hl"' : ""}><td>${name}</td><td>${rule}</td><td class="num">${m.pred}</td><td class="num">${S[v]["fp_removed_" + rule]}</td><td class="num">${S[v]["tp_lost_" + rule]}</td><td class="num">${fmt(m.precision, 3)}</td><td class="num">${fmt(m.recall, 3)}</td><td class="num">${fmt(m.f1, 3)}</td></tr>`; }));
+  $("c3-table").innerHTML = rows;
+  $("c3-cost").textContent = `Each variant is ${S.cost.box.calls} calls (about ${Math.round(S.cost.box.tokens / S.cost.box.calls).toLocaleString()} tokens each, nearly all from the 25 option images), ${usd(S.cost.box.usd)} and about ${fmt(S.cost.box.latency_s, 0)} s sequential. A tighter crop doesn't change the cost.`;
+  $("c3-findings").innerHTML = [
+    `"None of these" answers went up with tighter crops (${S.wide.choice_none} → ${S.box.choice_none} → ${S.sq20.choice_none}). Some were right (off-centre false positives with only part of an icon in view); some cost correct detections.`,
+    `Many correct detections flip between crops, e.g. a Doctor called "Pharmacy" or "Museum" only in the 20 px square, and a Memorial called "Bicycle rental" only in the wide crop. One Choice call is a noisy filter.`,
+    `The false positives that survive every crop are the right class in the wrong place: off-centre by 8–15 px (Hotel, Charging station, Traffic signals) or a second detection of an already-matched icon (Memorial). The Choice check can't remove these, because the icon really is that class. They need the detection re-centred, and duplicates merged over a radius at least an icon wide.`,
+    `Both Fitness station "hallucinations" are confirmed by all three crops. They turned out to be Dance icons, a class missing from the legend (see Change 4).`
+  ].map(t => `<li>${esc(t)}</li>`).join("");
+  $("c3-cards").innerHTML = C.cards.map(c => { const fp = c.match === "FP";
+    const cell = (v, name) => { const ch = c[v + "_choice"], keep = ch === c.label, ok = fp ? !keep : keep;
+      const what = fp ? (keep ? "kept ✗" : "removed ✓") : (keep ? "kept ✓" : "lost ✗");
+      return `<div><img src="${c.img[v]}" alt="${name} crop"><span class="lab">${name}</span><span class="ans">${esc(ch)}</span><span class="pill ${ok ? "good" : "bad"}">${what}</span></div>`; };
+    return `<div class="card"><div class="why">Loop claimed</div><div class="claim">${esc(c.label)}</div>
+      <div class="why"><b>${fp ? "Scored wrong" : "Scored correct"}</b>: ${esc(c.reason.text.replace(/^[^:]*: /, ""))}</div>
+      <div class="trio">${cell("wide", "wide")}${cell("box", "box")}${cell("sq20", "sq20")}</div></div>`; }).join("");
+})();
+
+// ---------- change 4 ----------
+(() => {
+  const C = D.c4, A = C.A;
+  $("c4-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_dance", "stage exp-dance", `${C.summary.api_new_calls} new calls`]);
+  const B2 = C.B2, B26 = C.B26, n = B2["Fitness station"].n + B2.Dance.n;
+  const swaps = B2["Fitness station"].as_other + B2.Dance.as_other + B26["Fitness station"].as_other + B26.Dance.as_other;
+  $("c4-stats").innerHTML = stat(swaps, "Fitness↔Dance swaps", `${n} icons, two questions each`) +
+    stat(`${B2["Fitness station"].correct + B2.Dance.correct}/${n}`, "correct, two-way question") + stat(`${B26["Fitness station"].correct + B26.Dance.correct}/${n}`, "correct, 26-way question") +
+    stat(fmt(A.loop.precision) + " → " + fmt(A.strict.precision), "tile precision, loop → strict") + stat(usd(C.summary.cost.usd), "added cost", `${C.summary.cost.calls} Choice calls + ${C.summary.dance_screening.stage2_calls} Dance loop calls`);
+  $("c4-why").innerHTML = [["Fitness legend", C.legend_fitness, "pix"], ["Dance legend", C.legend_dance, "pix"], ...C.baseline_fps.map((src, i) => [`baseline "Fitness" FP ${i + 1}`, src, ""])]
+    .map(([n2, src, cls]) => `<div class="tilecard"><img class="${cls}" src="${src}" alt="${n2}"><b>${n2}</b></div>`).join("");
+  $("c4-same").textContent = `Everything else is unchanged: the same tile (pinned), model, prompt, crops and code. Of the baseline's calls, ${C.demo_cost.api_cache_hits} replayed byte-identical from the cache, and the new ones are all Dance-related. Opus read all ${C.opus.entries_read} entries with exact labels (${usd(C.opus.cost_usd)}).`;
+  $("c4-dets").innerHTML = C.dets.map(d => { const right = d.choice === d.truth;
+    return `<div class="card ${right ? "good" : "bad"}"><div class="why">Loop claimed</div><div class="claim">${esc(d.label)}</div>
+      <div class="why"><b>Actually</b>: ${d.truth === "nothing" ? "no icon" : esc(d.truth)} icon</div><img src="${d.img}" alt="crop">
+      <div class="row"><span>Jev chose</span><b>${esc(d.choice)}</b></div><div class="row"><span>P(Fitness) · P(Dance)</span><b class="mono">${fmt(d.p_fitness)} · ${fmt(d.p_dance)}</b></div>
+      <div class="verdictline">${d.match === "TP" ? (d.choice === d.label ? "✓ correct, kept" : "✗ correct, lost") : (d.choice === d.label ? "✗ wrong claim kept" : "✓ wrong claim removed")}</div></div>`; }).join("");
+  $("c4-table").innerHTML = [["loop output", A.loop], ["after Choice, strict", A.strict], ["after Choice, gentle", A.gentle]].map(([nm, v], i) =>
+    `<tr${i === 1 ? ' class="hl"' : ""}><td>${nm}</td><td class="num">${v.pred}</td><td class="num">${v.tp}</td><td class="num">${v.fp}</td><td class="num">${fmt(v.precision, 3)}</td><td class="num">${fmt(v.recall, 3)}</td><td class="num">${fmt(v.f1, 3)}</td></tr>`).join("");
+  $("c4-conf").innerHTML = [["26-way (all legend symbols)", B26], ["two-way (Fitness or Dance)", B2]].flatMap(([q, B]) => ["Fitness station", "Dance"].map(t =>
+    `<tr><td>${q}</td><td>${t}</td><td class="num">${B[t].n}</td><td class="num">${B[t].correct}</td><td class="num">${B[t].as_other}</td><td class="num">${B[t].as_none}</td><td class="num">${B[t].as_else}</td></tr>`)).join("");
+  $("c4-icons").innerHTML = C.icons.map(q => { const ok = q.choice26 === q.truth && q.choice2 === q.truth;
+    return `<div class="card ${ok ? "good" : "warn"}"><img src="${q.img}" alt="${esc(q.truth)} icon"><div class="row"><span>truth</span><b>${q.truth === "Fitness station" ? "Fitness" : "Dance"}</b></div>
+      <div class="row"><span>26-way</span><b>${esc(q.choice26 === "Fitness station" ? "Fitness" : q.choice26)}</b></div><div class="row"><span>2-way</span><b>${esc(q.choice2 === "Fitness station" ? "Fitness" : q.choice2)}</b></div></div>`; }).join("");
+})();
+
+// ---------- change 5 ----------
+(() => {
+  const C = D.c5, ch = C.choice, c4 = C.c4;
+  $("c5-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", `${C.demo_cost.api_new_calls + ch.api_new_calls + 1} new calls`]);
+  const fadedLine = ch.loop.by_appearance["Parking | #0092da@0.33"];
+  $("c5-verdict").textContent = `With the faded variant in the legend, every faded Parking icon on the tile was found (${fadedLine.found} of ${fadedLine.n}, up from 1 of 4). Loop F1 rose from ${fmt(c4.loop.f1, 3)} to ${fmt(ch.loop.f1, 3)}, and after the Choice check from ${fmt(c4.gentle.f1, 3)} to ${fmt(ch.gentle.f1, 3)} (gentle), the best so far. One new weakness: the Choice check now lost 2 Doctors to "Pharmacy".`;
+  $("c5-stats").innerHTML = stat(`1/4 → ${fadedLine.found}/${fadedLine.n}`, "faded Parking found") + stat(fmt(c4.loop.f1, 3) + " → " + fmt(ch.loop.f1, 3), "F1, search loop") +
+    stat(fmt(c4.gentle.f1, 3) + " → " + fmt(ch.gentle.f1, 3), "F1, after Choice (gentle)") + stat(fmt(ch.strict.precision, 3), "precision, strict") +
+    stat("$" + fmt(C.demo_cost.total_usd + ch.cost.usd, 3), "run cost", `${C.demo_cost.api_new_calls} new loop/screen calls`);
+  $("c5-renames").innerHTML = C.renames.map(r => `<tr><td class="mono">${esc(r.file)}</td><td>${esc(r.old)}</td><td><b>${esc(r.new)}</b></td></tr>`).join("");
+  $("c5-variants").innerHTML = C.variants.filter(v => v.appearance && v.label !== "Picnic site").map(v => `<div class="card"><div class="claim">${esc(v.label)}</div>
+    <div class="why">scored as <b>${esc(v.class)}</b> · appearance <span class="mono">${esc(v.appearance)}</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end"><div style="text-align:center"><img class="pix" src="${v.base_img}" alt="base row"><div class="cap">base row</div></div>
+    <div style="text-align:center"><img class="pix" src="${v.img}" alt="variant row"><div class="cap">new row</div></div></div></div>`).join("");
+  $("c5-sheet").src = C.sheet;
+  $("c5-same").textContent = `Opus read all ${C.opus.entries_read} legend rows with exact labels; every crop matched its true box (${usd(C.opus.cost_usd)}). Unchanged: the tile, model, prompt template, crops and thresholds. Calls for rows whose name and image didn't change replayed from the cache (${C.demo_cost.api_cache_hits} of ${C.demo_cost.jev_calls}).`;
+  $("c5-table").innerHTML = [["search loop", c4.loop, ch.loop], ["after Choice, strict", c4.strict, ch.strict], ["after Choice, gentle", c4.gentle, ch.gentle]].map(([n, a, b], i) =>
+    `<tr${i === 2 ? ' class="hl"' : ""}><td>${n}</td><td class="num">${fmt(a.f1, 3)}</td><td class="num">${b.pred}</td><td class="num">${fmt(b.precision, 3)}</td><td class="num">${fmt(b.recall, 3)}</td><td class="num">${fmt(b.f1, 3)}</td></tr>`).join("");
+  const apps = Object.entries(ch.loop.by_appearance).filter(([k]) => /Parking|Charging|Playground|Drinking|Picnic|Fitness|Dance/.test(k));
+  const c4found = { "Parking | #0092da": "2", "Parking | #0092da@0.33": "1" };
+  $("c5-apps").innerHTML = apps.map(([k, v]) => { const [cls, app] = k.split(" | "); const g = ch.gentle.by_appearance[k];
+    return `<tr${app.includes("@") ? ' class="hl"' : ""}><td>${esc(cls)}</td><td class="mono">${esc(app)}${app.includes("@0.33") ? " (faded)" : ""}</td><td class="num">${v.n}</td><td class="num">${c4found[k] ?? "–"}</td><td class="num">${v.found}</td><td class="num">${g.found}</td></tr>`; }).join("");
+  const miss = C.screen_missed.map(m => `${m.label} (P ${fmt(m.p)})`).join(", ");
+  $("c5-moved").innerHTML = [
+    `Screening still says no for: ${miss}. "Charging station, restricted access" scoring 0.37 is correct: no faded charging stations are on this tile, and the row's count is for the whole class. Bust, Shelter and Dance venue (renamed from Dance; 0.42 → 0.41) remain real misses. Because Dance wasn't forced this time, its 2 icons are missed again.`,
+    `The two Fitness claims on Dance icons were both answered "Dance venue" in the Choice check and removed, as in Change 4.`,
+    `The red health icons got worse under the Choice check: 2 correct Doctors were picked as "Pharmacy" and 1 as "none", and a correct Pharmacy as "Hospital". In Change 3 those Doctors were kept. Both the new name ("Doctor / clinic") and the 6 extra options changed at once, so the cause isn't known yet.`,
+    `Cost: ${C.demo_cost.api_new_calls} new screening and loop calls (renamed classes and new rows) plus ${ch.cost.calls} Choice calls. Each Choice call carries ${ch.n_options} options at about ${Math.round(ch.cost.tokens / ch.cost.calls).toLocaleString()} tokens.`
+  ].map(t => `<li>${esc(t)}</li>`).join("");
+  $("c5-lost").innerHTML = C.rows_lost.map(q => `<tr><td>${esc(q.gt_label)}</td><td>${esc(q.choice)}</td><td class="num">${fmt(q.p_class)}</td><td class="num">${fmt(q.p_none)}</td></tr>`).join("");
+})();
+
+// ---------- change 6 ----------
+(() => {
+  const C = D.c6, N = C.summary.names, K = C.summary.codes;
+  $("c6-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", "stage exp-anon", `${N.cost.new_calls + K.cost.new_calls + C.icon_cost.calls} calls`]);
+  const total = N.cost.loop_usd + N.cost.choice_usd + K.cost.loop_usd + K.cost.choice_usd + C.icon_cost.usd;
+  $("c6-stats").innerHTML = stat(fmt(N.loop.precision) + " → " + fmt(K.loop.precision), "search-loop precision", "names → codes") +
+    stat(`${(C.loopfp.names.Pharmacy || 0)} → ${(C.loopfp.codes.Pharmacy || 0)}`, "wrong Pharmacy claims") +
+    stat(`${N.icons.correct} → ${K.icons.correct}`, "of 119 icons classed right") + stat(fmt(N.gentle.f1, 3) + " → " + fmt(K.gentle.f1, 3), "tile F1 after Choice (gentle)") + stat("$" + fmt(total, 2), "experiment cost");
+  const med = C.codes.filter(c => /Doctor|Pharmacy|Hospital|Museum/.test(c.name));
+  $("c6-codes-pre").textContent = `Does \`map\` contain at least one instance of the map
+symbol shown in this legend excerpt [legend image],
+which the legend labels '${C.codes.find(c => c.name === "Pharmacy").code}'? ...
+
+Choice options: ${med.map(c => `"${c.code}"`).join(", ")}, ...
+(31 legend rows) + "none of these"
+${med.map(c => `  ${c.code} = ${c.name}`).join("\n")}  (hidden from Jev)`;
+  $("c6-tiles").innerHTML = C.tiles.map((t, i) => `<div class="tilecard"><img src="${t.img}" alt="tile ${i}"><b>Tile ${i}</b><span class="mono">Doctor ${t.counts["Doctor / clinic"]} · Pharm. ${t.counts.Pharmacy} · Hosp. ${t.counts.Hospital}</span></div>`).join("");
+  const rows = [
+    ["Screening", "correct of 24", N.screening.correct, K.screening.correct],
+    ["Search loop", "precision", fmt(N.loop.precision, 3), fmt(K.loop.precision, 3)], ["", "recall", fmt(N.loop.recall, 3), fmt(K.loop.recall, 3)], ["", "F1", fmt(N.loop.f1, 3), fmt(K.loop.f1, 3)],
+    ["After Choice (strict)", "precision / recall", `${fmt(N.strict.precision)} / ${fmt(N.strict.recall)}`, `${fmt(K.strict.precision)} / ${fmt(K.strict.recall)}`], ["", "F1", fmt(N.strict.f1, 3), fmt(K.strict.f1, 3)],
+    ["After Choice (gentle)", "F1", fmt(N.gentle.f1, 3), fmt(K.gentle.f1, 3)],
+    ["119 medical icons", "classed right", N.icons.correct, K.icons.correct], ["", "mean P(true class)", fmt(N.icons.mean_p_true), fmt(K.icons.mean_p_true)],
+    ["Cost", "loop + Choice on tiles", "$" + fmt(N.cost.loop_usd + N.cost.choice_usd, 3), "$" + fmt(K.cost.loop_usd + K.cost.choice_usd, 3)]];
+  $("c6-table").innerHTML = rows.map(([a, b, n, k]) => `<tr><td>${a}</td><td>${b}</td><td class="num">${n}</td><td class="num">${k}</td></tr>`).join("");
+  const fmtC = o => Object.entries(o).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${esc(k)} ${v}`).join(" · ");
+  $("c6-loopfp").textContent = `Detections that matched no true icon of their class, per searched class. names: ${fmtC(C.loopfp.names)}. codes: ${fmtC(C.loopfp.codes)}.`;
+  $("c6-conf").innerHTML = ["Doctor / clinic", "Pharmacy", "Hospital"].map(t => `<tr><td>${t}</td><td>${fmtC(N.icons.confusion[t])}</td><td>${fmtC(K.icons.confusion[t])}</td></tr>`).join("");
+  $("c6-agree").textContent = `Agreement on the 119 icons: both right ${C.agree.both}, only names right ${C.agree.only_names}, only codes right ${C.agree.only_codes}, both wrong ${C.agree.neither}. So ${C.agree.only_names + C.agree.only_codes} icons (${Math.round(100 * (C.agree.only_names + C.agree.only_codes) / 119)}%) flip between conditions.`;
+  const card = f => `<div class="card"><img src="${f.img}" alt=""><div class="row"><span>truth</span><b>${esc(f.truth)}</b></div><div class="row"><span>names</span><b>${esc(f.names)}</b></div><div class="row"><span>codes</span><b>${esc(f.codes)}</b></div></div>`;
+  $("c6-flip-n").innerHTML = C.flips.names_wrong.map(card).join(""); $("c6-flip-c").innerHTML = C.flips.codes_wrong.map(card).join("");
+  $("c6-lost").textContent = `names: ${fmtC(C.lost.names) || "none"}. codes: ${fmtC(C.lost.codes) || "none"}.`;
+})();
+
+// ---------- change 7 ----------
+(() => {
+  const C = D.c7, S = C.strategies, one = S.single, ad = S.adaptive, v5 = S.vote5;
+  $("c7-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", "stage exp-vote", `${C.api_new_calls} new calls`]);
+  $("c7-verdict").textContent = `Asking again only when Jev was unsure (${C.n_unsure} of ${C.n} detections) recovered ${ad.strict.tp - one.strict.tp} correct detections that the single call had thrown away, for ${ad.calls - one.calls} extra calls. Strict F1 rose from ${fmt(one.strict.f1, 3)} to ${fmt(ad.strict.f1, 3)}, the best so far. A 5-call vote on everything did slightly better (${fmt(v5.strict.f1, 3)}) for 5 times the calls. No method removed any more wrong claims: those are confidently wrong every time.`;
+  $("c7-stats").innerHTML = stat(fmt(one.strict.f1, 3) + " → " + fmt(ad.strict.f1, 3), "strict F1, single → adaptive") +
+    stat(`+${ad.strict.tp - one.strict.tp}`, "correct detections kept") + stat(`${C.n_unsure}/${C.n}`, "answers below 0.95", "asked again") +
+    stat(`${one.calls} → ${ad.calls}`, "Choice calls") + stat(fmt(v5.strict.f1, 3), "strict F1, 5-call vote", `${v5.calls} calls`);
+  const names = { single: "1 call (Change 5)", adaptive: "ask again when unsure", vote3: "3-call vote on all", vote5: "5-call vote on all" };
+  $("c7-table").innerHTML = Object.entries(S).map(([k, v]) => `<tr${k === "adaptive" ? ' class="hl"' : ""}><td>${names[k]}</td><td class="num">${v.calls}</td><td class="num">${usd(v.usd)}</td>
+    <td class="num">${fmt(v.strict.precision)} / ${fmt(v.strict.recall)}</td><td class="num">${fmt(v.strict.f1, 3)}</td><td class="num">${fmt(v.gentle.precision)} / ${fmt(v.gentle.recall)}</td><td class="num">${fmt(v.gentle.f1, 3)}</td></tr>`).join("");
+  const short = c => c === "none" ? "none" : c.replace(" / clinic", "").replace(" / Stolperstein", "");
+  $("c7-cards").innerHTML = C.changed.map(q => { const good = q.match === "TP";
+    const dec = Object.entries(q.decision).map(([k, v]) => { const ok = good ? v === q.gt_label : v !== q.gt_label;
+      return `<div class="row"><span>${names[k]}</span><b style="color:var(${ok ? "--tp" : "--fp"})">${esc(short(v))}</b></div>`; }).join("");
+    return `<div class="card"><div class="why">Loop claimed</div><div class="claim">${esc(q.gt_label)}</div>
+      <div class="why">${good ? "a real icon of this class" : "no such icon here (wrong claim)"}</div><img src="${q.img}" alt="crop">
+      <div class="why">Five answers (top probability)</div>
+      <div class="mono" style="font-size:12px;line-height:1.6">${q.answers.map((x, i) => `${i + 1}. ${esc(short(x.cls))} <span style="color:var(--muted)">${fmt(x.top)}</span>`).join("<br>")}</div>
+      ${dec}</div>`; }).join("");
+  const fps = C.fp_strict.map(f => `${esc(f.label)} (${f.answers.filter(a => a === f.label).length}/5 times)`).join(", ");
+  $("c7-tells").innerHTML = [
+    `<b>The single-call losses were mostly bad luck.</b> Of the correct detections the single call removed, most got the right class on 2–4 of the next 4 calls: Doctors answered "Pharmacy" or "none", a Pharmacy answered "Hospital", a Museum and an Artwork answered "none".`,
+    `<b>Asking again only when unsure captures most of the gain.</b> It needed ${ad.calls - one.calls} extra calls (${Math.round(100 * (ad.calls - one.calls) / one.calls)}% more) against ${v5.calls - one.calls} for a full 5-call vote, and got ${ad.strict.tp - one.strict.tp} of the ${v5.strict.tp - one.strict.tp} extra correct detections.`,
+    `<b>Repeating doesn't fix wrong claims.</b> The ${C.fp_strict.length} wrong claims the strict rule keeps are confirmed as their claimed class almost every time: ${fps}. Those need a different fix, such as a better crop or ground-truth check, not more calls.`,
+    `<b>The 3-call vote can be worse than asking only when unsure</b>: one Hotel answered confidently on call 1 was outvoted by two "none" answers. Keeping confident answers protects them.`
+  ].map(t => `<li>${t}</li>`).join("");
+})();
+
+// ---------- change 8 ----------
+(() => {
+  const C = D.c8, V = C.variants, n = V.none, u = V.unmix, c = V.core;
+  $("c8-meta").innerHTML = metaLine(C.manifest, ["config osm_phase1_v2", "stages read-palette, demo-tile --mask-palette", `${C.new_calls} new calls`]);
+  const NZ = C.noise.masks;
+  $("c8-verdict").textContent = `Masking each search image to the symbol's own colours made screening find classes it always missed (Bust, Dance venue) and cut wrong claims in the search loop. Averaged over three runs each, the masked search loop scores higher (F1 ${fmt(NZ.unmix.loop_f1.mean, 3)} vs ${fmt(NZ.none.loop_f1.mean, 3)}) and varies far less from run to run; after the class check the two tie (${fmt(NZ.unmix.adaptive_f1.mean, 3)} vs ${fmt(NZ.none.adaptive_f1.mean, 3)}). A single run had made the mask look worse. The mask only works once blended edge pixels are kept.`;
+  $("c8-stats").innerHTML = stat(`${n.missed.length} → ${u.missed.length}`, "classes screening missed") + stat(`${n.loop.fp} → ${u.loop.fp}`, "search-loop wrong claims", "run 1") +
+    stat(fmt(NZ.none.loop_f1.mean, 3) + " → " + fmt(NZ.unmix.loop_f1.mean, 3), "search-loop F1", "mean of 3 runs") + stat(fmt(NZ.none.adaptive_f1.mean, 3) + " → " + fmt(NZ.unmix.adaptive_f1.mean, 3), "F1 after class check", "mean of 3 runs") + stat(usd(C.palette_cost), "Opus palette read");
+  $("c8-noise").innerHTML = [0, 1, 2].map(i => `<tr><td>Run ${i + 1}${i === 0 ? " (above)" : ""}</td><td class="num">${fmt(NZ.none.runs[i].loop.f1, 3)}</td><td class="num">${fmt(NZ.none.runs[i].adaptive.f1, 3)}</td><td class="num">${fmt(NZ.unmix.runs[i].loop.f1, 3)}</td><td class="num">${fmt(NZ.unmix.runs[i].adaptive.f1, 3)}</td></tr>`).join("") +
+    `<tr class="hl"><td>Mean</td><td class="num">${fmt(NZ.none.loop_f1.mean, 3)}</td><td class="num">${fmt(NZ.none.adaptive_f1.mean, 3)}</td><td class="num">${fmt(NZ.unmix.loop_f1.mean, 3)}</td><td class="num">${fmt(NZ.unmix.adaptive_f1.mean, 3)}</td></tr>`;
+  const kk = x => `${x.found_k_of_n["3"]} / ${x.found_k_of_n["2"] + x.found_k_of_n["1"]} / ${x.found_k_of_n["0"]}`;
+  const fl = x => Object.entries(x.flaky_by_class).map(([k, v]) => `${esc(k)} ${v}`).join(", ");
+  $("c8-noise2").innerHTML = [["Loop F1, lowest to highest run", x => `${fmt(x.loop_f1.min, 3)} – ${fmt(x.loop_f1.max, 3)}`],
+    ["Icons found in all 3 / some / no runs", kk], ["Icons found only sometimes, by class", fl],
+    ["Box centre spread, median (90th percentile)", x => `${fmt(x.centre_spread_px.median)} px (${fmt(x.centre_spread_px.p90)} px)`],
+    ["Classes screening missed (every run)", x => x.runs[0].screen_missed.join(", ") || "none"]]
+    .map(([lab, f]) => `<tr><td>${lab}</td><td class="num">${f(NZ.none)}</td><td class="num">${f(NZ.unmix)}</td></tr>`).join("");
+  $("c8-tiles").innerHTML = C.tiles.map(t => `<div class="tilecard"><img src="${t.img}" alt="${esc(t.label)}"><b>${esc(t.label)}</b></div>`).join("");
+  const multi = C.legend.filter(r => r.colours.length > 1).length;
+  $("c8-pal-note").textContent = `Opus returned one colour for ${C.legend.length - multi} symbols and two for ${multi}. Every symbol's true fill colour was in its palette (largest miss: Traffic signals, #666666 against the true #545454, delta E 7.4, within the tolerance). Cost ${usd(C.palette_cost)}.`;
+  const sw = h => `<span style="display:inline-block;width:14px;height:14px;border:1px solid var(--rule);background:${h};vertical-align:-2px;margin-right:4px"></span><span class="mono">${h}</span>`;
+  $("c8-pal").innerHTML = C.legend.map(r => `<tr><td>${esc(r.label)}</td><td>${r.colours.map(sw).join(" ")}</td><td>${r.kept.length < r.colours.length ? `${r.kept.length} of ${r.colours.length}` : "all"}</td>
+    <td><img class="pix" src="${r.orig}" alt="" style="height:60px"></td><td><img class="pix" src="${r.core}" alt="" style="height:60px"></td><td><img class="pix" src="${r.unmix}" alt="" style="height:60px"></td></tr>`).join("");
+  const row = (a, b, f) => `<tr><td>${a}</td><td>${b}</td>${["none", "core", "unmix"].map(m => `<td class="num">${f(V[m])}</td>`).join("")}</tr>`;
+  $("c8-table").innerHTML = [
+    row("Screening", "classes on tile missed", v => v.missed.length ? v.missed.join(", ") : "none"),
+    row("Search loop", "found / wrong claims", v => `${v.loop.tp} / ${v.loop.fp}`), row("", "precision / recall", v => `${fmt(v.loop.precision)} / ${fmt(v.loop.recall)}`), row("", "F1", v => fmt(v.loop.f1, 3)),
+    row("Class decision, 1 call", "F1 (strict)", v => fmt(v.single.strict.f1, 3)),
+    row("Ask again when unsure", "precision / recall", v => `${fmt(v.adaptive.strict.precision)} / ${fmt(v.adaptive.strict.recall)}`), row("", "F1 (strict)", v => fmt(v.adaptive.strict.f1, 3)),
+    row("Cost", "search loop", v => `${v.loop_calls} calls, ${usd(v.loop_usd)}`)].join("");
+  $("c8-per").innerHTML = C.per_class.map(r => `<tr><td>${esc(r.cls)}</td><td class="num">${r.true}</td>${["none", "core", "unmix"].map(m => `<td class="num">${r[m][0]} / ${r[m][1]}</td>`).join("")}</tr>`).join("");
+})();
+
+show(location.hash.slice(1));
+</script>
